@@ -1,8 +1,9 @@
 #include <iostream>  
 #include <cstring>  
 #include <unistd.h>  
-#include <sys/socket.h>  
-#include <netinet/in.h>  
+#include <sys/socket.h> 
+#include <netinet/in.h>
+#include <arpa/inet.h>
   
 #define PORT 5000  
   
@@ -51,7 +52,13 @@ int main() {
         if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0) {  
             perror("accept");  
             exit(EXIT_FAILURE);  
-        }  
+        } 
+
+	// when connection is accepted, obtain the ip address and port from the client.
+	char client_ipstr[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, &address.sin_addr, client_ipstr, sizeof(client_ipstr));
+    	int client_port = ntohs(address.sin_port);
+	printf("Accepted connection from IP %s at PORT %d\n", client_ipstr, client_port);
   
         // Create a new thread to handle the client  
         // Note: For simplicity, this example does not create a new thread.  
