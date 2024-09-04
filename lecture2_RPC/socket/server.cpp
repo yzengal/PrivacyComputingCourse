@@ -31,7 +31,7 @@ int main() {
         exit(EXIT_FAILURE);  
     }  
   
-    // Forcefully attaching socket to the port 1234  
+    // Forcefully attaching socket to the port 5000  
     address.sin_family = AF_INET;  
     address.sin_addr.s_addr = INADDR_ANY;  
     address.sin_port = htons(PORT);  
