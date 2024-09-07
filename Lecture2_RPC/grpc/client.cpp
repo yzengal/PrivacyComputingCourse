@@ -20,15 +20,13 @@ public:
     PaymentClient(std::shared_ptr<Channel> channel)  
         : stub_(PaymentService::NewStub(channel)) {}  
 
-        // Assembles the client's payload, sends it and presents the response back  
-        // from the server.  
-        Status ProcessPayment(const PaymentRequest& request, PaymentResponse* response) {  
-        ClientContext context;  
-
+    // Assembles the client's payload, sends it and presents the response back  
+    // from the server.  
+    Status ProcessPayment(const PaymentRequest& request, PaymentResponse* response) {  
+        ClientContext context;
         // Actually call the server.  
         return stub_->ProcessPayment(&context, request, response);  
     }  
-
 private:  
     std::unique_ptr<PaymentService::Stub> stub_;  
 };  
@@ -41,6 +39,7 @@ int main(int argc, char** argv) {
     std::string ip_addr_withport = ip_addr;
     ip_addr_withport += ":";
     ip_addr_withport += std::to_string(PORT);
+    std::cout << "Connect with server: IP " << ip_addr << " at PORT " << PORT << std::endl; 
     
     PaymentRequest request;  
     request.set_credit_card_number("1234xxxx5678");  
