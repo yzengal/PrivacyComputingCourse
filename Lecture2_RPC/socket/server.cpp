@@ -54,11 +54,11 @@ int main() {
             exit(EXIT_FAILURE);  
         } 
 
-	// when connection is accepted, obtain the ip address and port from the client.
-	char client_ipstr[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &address.sin_addr, client_ipstr, sizeof(client_ipstr));
-    	int client_port = ntohs(address.sin_port);
-	printf("Accepted connection from IP %s at PORT %d\n", client_ipstr, client_port);
+        // when connection is accepted, obtain the ip address and port from the client.
+        char client_ipstr[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &address.sin_addr, client_ipstr, sizeof(client_ipstr));
+            int client_port = ntohs(address.sin_port);
+        printf("Accepted connection from IP %s at PORT %d\n", client_ipstr, client_port);
   
         // Create a new thread to handle the client  
         // Note: For simplicity, this example does not create a new thread.  

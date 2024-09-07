@@ -1,0 +1,24 @@
+syntax = "proto3";  
+  
+package payment;  
+  
+// The payment request message sent by the e-commerce platform  
+message PaymentRequest {  
+  string credit_card_number = 1;  
+  float total_charge = 2;  
+  string user_name = 3;  
+}  
+  
+// The payment response message sent by the bank  
+message PaymentResponse {  
+  bool success = 1;  
+  string message = 2;  
+}  
+  
+// The payment service definition.  
+service PaymentService {  
+  // ProcessPayment processes a payment request  
+  rpc ProcessPayment(PaymentRequest) returns (PaymentResponse);  
+}
+
+
