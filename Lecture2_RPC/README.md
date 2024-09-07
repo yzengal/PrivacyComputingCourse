@@ -53,14 +53,44 @@ cmake ..
 make
 ```
 
-1. Execute the following command to enable the **server**:
+3. Execute the following command to enable the **server**:
 ```
 ./grpc_server
 ```
 
-1. Execute the following command to enable the **client**:
+4. Execute the following command to enable the **client**:
 ```
 ./grpc_client
 ```
 
 ### Example 3: More on gRPC
+
+This example is similar to the second one. The major differences are
+* This one has deployed ``sleep(1~5 second)`` in the server-side, so that students can understand the synchronous in RPC;
+* This one has useful ``log`` information, such as running time and communication cost, which are general metrics of privacy computing techniques.
+* 
+1. Update the environment variables related to gRPC by the following command:
+```
+cd Lecture2/RPC/more_grpc
+source environment.sh
+```
+Notice that, if your gRPC is not installed in ``/opt/gRPC``, you need to revise ``environment.sh`` by replacing with your install path of gRPC.
+
+2. Execute the following commands to compile **client** and **server**:
+```
+cd Lecture2/RPC/more_grpc
+mkdir build
+cd build
+cmake ..
+make
+```
+
+3. Execute the following command to enable the **server**:
+```
+./grpc_server
+```
+
+4. Execute the following command to enable the **client**:
+```
+./grpc_client
+```
