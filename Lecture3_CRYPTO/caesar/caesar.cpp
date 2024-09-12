@@ -6,7 +6,7 @@
 using namespace std;  
   
 // 凯撒密码加密函数  
-string caesarCipherEncrypt(const string& plain_data, int shift) {  
+string CaesarCipherEncrypt(const string& plain_data, int shift) {  
     string encrypt_data;
     for (size_t i=0,sz=plain_data.size(); i<sz; ++i) {
         char ch = toupper(plain_data[i]);
@@ -17,6 +17,21 @@ string caesarCipherEncrypt(const string& plain_data, int shift) {
         encrypt_data.push_back(ch);
     } 
     return encrypt_data;  
+} 
+
+// 凯撒密码解密函数  
+string CaesarCipherDecrypt(const string& encrypt_data, int shift) {  
+    string plain_data;
+    shift = 26 - shift;
+    for (size_t i=0,sz=encrypt_data.size(); i<sz; ++i) {
+        char ch = toupper(encrypt_data[i]);
+        if (isalpha(ch)) {  
+            // 字母表循环  
+            ch = 'A' + (ch - 'A' + shift) % 26;  
+        }
+        plain_data.push_back(ch);
+    } 
+    return plain_data;  
 }  
   
 int main(int argc, char* argv[]) {  
@@ -31,8 +46,11 @@ int main(int argc, char* argv[]) {
     cout << "Enter the text to encrypt: ";  
     getline(cin, input_data); // 从标准输入读取字符串  
   
-    string encrypt_data = caesarCipherEncrypt(input_data, shift);  
+    string encrypt_data = CaesarCipherEncrypt(input_data, shift);  
     cout << "Encrypted text: " << encrypt_data << endl;  
+
+    string decrypt_data = CaesarCipherDecrypt(encrypt_data, shift);  
+    cout << "Decrypted text: " << decrypt_data << endl; 
   
     return 0;  
 }
