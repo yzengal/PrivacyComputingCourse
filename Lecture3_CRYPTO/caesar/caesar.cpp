@@ -9,10 +9,11 @@ using namespace std;
 string CaesarCipherEncrypt(const string& plain_data, int shift) {  
     string encrypt_data;
     for (size_t i=0,sz=plain_data.size(); i<sz; ++i) {
-        char ch = toupper(plain_data[i]);
+        char ch = plain_data[i];
         if (isalpha(ch)) {  
-            // 字母表循环  
-            ch = 'A' + (ch - 'A' + shift) % 26;  
+            // 字母表循环 
+            char base = isupper(ch) ? 'A' : 'a';   
+            ch = (ch - base + shift) % 26 + base;  
         }
         encrypt_data.push_back(ch);
     } 
@@ -24,10 +25,11 @@ string CaesarCipherDecrypt(const string& encrypt_data, int shift) {
     string plain_data;
     shift = 26 - shift;
     for (size_t i=0,sz=encrypt_data.size(); i<sz; ++i) {
-        char ch = toupper(encrypt_data[i]);
+        char ch = encrypt_data[i];
         if (isalpha(ch)) {  
             // 字母表循环  
-            ch = 'A' + (ch - 'A' + shift) % 26;  
+            char base = isupper(ch) ? 'A' : 'a';   
+            ch = (ch - base + shift) % 26 + base;   
         }
         plain_data.push_back(ch);
     } 

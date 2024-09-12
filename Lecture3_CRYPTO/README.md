@@ -10,9 +10,9 @@ In a practical application scenario, imagine a situation where an individual or 
 
 In the following, we have provided three example codes for simulating the aforementioned application scenario.
 
-### Example 1: Caesar Cipher
+### Example 1: Caesar Cipher & Decipher
 
-1. Execute the following commands to compile **caesar** and **server**:
+1. Execute the following commands to compile **caesar** and **decipher**:
 ```
 cd Lecture3_CRYPTO/caesar
 mkdir build
@@ -27,3 +27,12 @@ make
 ```
 Here, ``-k 3`` implies the shift size in Caesar Cipher.
 
+3. After running the above command, you need to type in the text that waits for encryption, such as ``SEND HELP``, and will obtain the output ``Encrypted text: VHQG KHOS`` and ``Decrypted text: SEND HELP``.
+
+4. Now, you have known how the casesar cipher works. As mentioned in the course slides, it is interesting to investigate how to decipher an encrypt data without knowing the exact shift. An example of such deciphers are summarized in ``decipher.cpp``. Execute the following command to run the **decipher**:
+```
+./caesar Gnyx vf purnc fubj zr gur pbqr
+```
+Here, ``Gnyx vf purnc fubj zr gur pbqr`` implies the encrypt data.
+
+5. The decipher first reads all the english words as a dictionary from the file ``english-word.txt``. Then, the decipher enumerates all possible values for shift (i.e., 1~25). For each shift size, it tries to decrypt the data and verifies whether all the decrpted words are meaningful (i.e., by searching it in the dictionary). Whenever all the decrpted words are meaningful, the decipher will output the shift size and decrypt data. For example, the output of the above command is ``Decrypt with shift 13: Talk is cheap show me the code``.
