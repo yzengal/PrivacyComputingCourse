@@ -1,6 +1,6 @@
 # Lecture 3: Cryptography
 
-The purpose of this project is to help students learn the basic tools of cryptography, including **Caesar Cipher**, **AES**, and **SEAL**.
+The purpose of this project is to help students learn the basic tools of cryptography, including **Caesar Cipher**, **Diffie-Hellmen**, **AES**, and **SEAL**.
 
 ## Application scenario
 
@@ -69,5 +69,5 @@ make
 5. From the output of both server-side and client-server, you will obtain the information about their public keys (A and B), private keys (a and b), and shared secret.
 
 * a and b are random samples between 1 and p-2.
-* A = g^a%p, B = g^b%p
-* the shared secret is g^{ab}%p
+* $A = g^a%p$, $B = g^b%p$
+* the shared secret is $g^{ab}%p$
