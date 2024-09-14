@@ -8,7 +8,7 @@ In a practical application scenario, imagine a situation where an individual or 
 
 ## Examples
 
-In the following, we have provided three example codes for simulating the aforementioned application scenario.
+In the following, we have provided four example codes for simulating the aforementioned application scenario.
 
 ### Example 1: Caesar Cipher & Decipher
 
@@ -68,6 +68,6 @@ make
 
 5. From the output of both server-side and client-server, you will obtain the information about their public keys (A and B), private keys (a and b), and shared secret.
 
-* a and b are random samples between 1 and p-2.
+* a and b are random samples between 1 and $p-2$.
 * $A = g^a%p$, $B = g^b%p$
-* the shared secret is $g^{ab}%p$
+* the shared secret is $g^{ab}%p = B^{a}%p = A^{b}%p$
