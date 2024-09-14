@@ -31,7 +31,7 @@ Here, ``-k 3`` implies the shift size in Caesar Cipher.
 
 4. Now, you have known how the casesar cipher works. As mentioned in the course slides, it is interesting to investigate how to decipher an encrypt data without knowing the exact shift. An example of such deciphers are summarized in ``decipher.cpp``. Execute the following command to run the **decipher**:
 ```
-./caesar Gnyx vf purnc fubj zr gur pbqr
+./decipher Gnyx vf purnc fubj zr gur pbqr
 ```
 Here, ``Gnyx vf purnc fubj zr gur pbqr`` implies the encrypt data.
 
