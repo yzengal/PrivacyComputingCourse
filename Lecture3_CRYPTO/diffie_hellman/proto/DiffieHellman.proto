@@ -1,0 +1,24 @@
+// DiffieHellman.proto  
+syntax = "proto3";  
+import "google/protobuf/empty.proto";
+  
+package DiffieHellman;  
+  
+// DiffieHellmanService 服务定义  
+service DiffieHellmanService {  
+    // GetParams 获取Diffie-Hellman密钥交换的参数 
+    rpc GetParams(google.protobuf.Empty) returns (DiffieHellmanParams);  
+    // GetParams 获取Diffie-Hellman密钥交换的随机数r^g%p的结果
+    rpc GetRandom(DiffieHellmanRg) returns (DiffieHellmanRg);  
+}  
+  
+// DiffieHellmanParams 响应消息，包含Diffie-Hellman密钥交换的参数  
+message DiffieHellmanParams {  
+    uint64 p = 1;  // 大质数  
+    uint64 g = 2;  // 生成元  
+}
+
+// DiffieHellmanParams 响应消息，包含Diffie-Hellman密钥交换的随机数r^g%p的结果
+message DiffieHellmanRg {  
+    uint64 rg_mod_p = 1;  // 随机数的g次方取模结果  
+}

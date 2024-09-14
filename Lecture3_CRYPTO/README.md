@@ -36,3 +36,38 @@ Here, ``-k 3`` implies the shift size in Caesar Cipher.
 Here, ``Gnyx vf purnc fubj zr gur pbqr`` implies the encrypt data.
 
 5. The decipher first reads all the english words as a dictionary from the file ``english-word.txt``. Then, the decipher enumerates all possible values for shift (i.e., 1~25). For each shift size, it tries to decrypt the data and verifies whether all the decrpted words are meaningful (i.e., by searching it in the dictionary). Whenever all the decrpted words are meaningful, the decipher will output the shift size and decrypt data. For example, the output of the above command is ``Decrypt with shift 13: Talk is cheap show me the code``.
+
+### Example 2: Diffie-Hellman Key Exchange
+
+The Diffie-Hellman algorithm is utilized when secure key exchange is required between two communicating parties in the context of symmetric encryption. This scenario arises when both parties need to agree upon a shared secret key over an insecure channel, ensuring that no eavesdropper can intercept and determine the key. By employing the Diffie-Hellman protocol, each party can independently compute the same secret key without ever transmitting the key itself over the communication link, thereby enhancing the security of the subsequent symmetric encryption process.
+
+1. Update the environment variables related to gRPC by the following command:
+```
+cd Lecture3_CRYPTO/diffie_hellman
+source environment.sh
+```
+Notice that, if your gRPC is not installed in ``/opt/gRPC``, you need to revise ``environment.sh`` by replacing with your install path of gRPC.
+
+2. Execute the following commands to compile **client** and **server**:
+```
+mkdir build
+cd build
+cmake ..
+make
+```
+
+3. Execute the following command to enable the **server**:
+```
+./server
+```
+
+4. Execute the following command to enable the **client**:
+```
+./client
+```
+
+5. From the output of both server-side and client-server, you will obtain the information about their public keys (A and B), private keys (a and b), and shared secret.
+
+* a and b are random samples between 1 and p-2.
+* A = g^a%p, B = g^b%p
+* the shared secret is g^{ab}%p
