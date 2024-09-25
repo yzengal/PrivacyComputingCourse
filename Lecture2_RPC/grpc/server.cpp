@@ -21,6 +21,8 @@ class PaymentServiceImpl final : public PaymentService::Service {
         bool is_valid_card = request->credit_card_number().size() == 12;  // Simple validation  
         bool has_funds = request->total_charge() <= 100000;  // Assuming bank has funds for <= 100000  
 
+        std::cout << request->credit_card_number() << " " << request->total_charge() << std::endl;
+
         std::string result_message;  
         if (is_valid_card && has_funds) {  
             response->set_success(true);  

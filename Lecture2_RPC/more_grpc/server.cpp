@@ -42,7 +42,7 @@ class PaymentServiceImpl final : public PaymentService::Service {
         response->set_message(result_message); 
 
         // sleep for 1~5 seconds randomly
-        sleep(1+rand()%5); 
+        //sleep(1+rand()%5); 
 
         // record when the RPC call has returned
         std::chrono::steady_clock::time_point endTimer = std::chrono::steady_clock::now();
