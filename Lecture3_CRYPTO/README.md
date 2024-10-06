@@ -1,6 +1,6 @@
 # Lecture 3: Cryptography
 
-The purpose of this project is to help students learn the basic tools of cryptography, including **Caesar Cipher**, **Diffie-Hellmen**, **AES**, and **SEAL**.
+The purpose of this project is to help students learn the basic tools of cryptography, including **Caesar Cipher**, **Diffie-Hellmen**, and **AES**.
 
 ## Application scenario
 
@@ -71,3 +71,36 @@ make
 * a and b are random samples between 1 and $p-2$.
 * $A = g^a%p$, $B = g^b%p$
 * the shared secret is $g^{ab}%p = B^{a}%p = A^{b}%p$
+
+### Example 3: AES encryption and decryption
+
+AES encryption and decryption refer to the process of encoding and decoding data using the Advanced Encryption Standard (AES) algorithm. AES is a symmetric encryption algorithm, meaning the same key is used for both encryption and decryption. It supports various key lengths, commonly 128-bit, 192-bit, and 256-bit, with longer keys providing higher security but also consuming more computational resources. 
+
+1. Update the environment variables related to gRPC by the following command:
+```
+cd Lecture3_CRYPTO/aes
+source environment.sh
+```
+Notice that, if your gRPC is not installed in ``/opt/gRPC``, you need to revise ``environment.sh`` by replacing with your install path of gRPC.
+
+2. Execute the following commands to compile **client** and **server**:
+```
+mkdir build
+cd build
+cmake ..
+make
+```
+
+3. Execute the following command to enable the **server**:
+```
+./server
+```
+
+4. Execute the following command to enable the **client**:
+```
+./client
+```
+You can also provide the ip address and input message, e.g., by executing the following command
+```
+./client localhost "Hello, world!"
+```
