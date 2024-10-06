@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <cstdlib>
 #include <grpcpp/grpcpp.h>
 
 #include "util.hpp"
@@ -33,7 +34,8 @@ public:
             std::cout << "\t" << "p: " << response.p() << std::endl;
             std::cout << "\t" << "g: " << response.g() << std::endl;
         } else {
-            std::cout << "RPC failed" << std::endl;
+            std::cerr << "RPC failed: " << status.error_message() << std::endl;
+            std::exit(EXIT_FAILURE);
         }
     }
   
@@ -52,8 +54,9 @@ public:
         Status status = stub_->GetRandom(&context, request, &response);
   
         if (!status.ok()) {
+            std::cerr << "RPC failed: " << status.error_message() << std::endl;
             std::cout << "Failed to get Diffie-Hellman random value A from server." << std::endl;
-            return;
+            std::exit(EXIT_FAILURE);
         }
         A = response.rg_mod_p();
 

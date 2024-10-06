@@ -6,9 +6,10 @@ package DiffieHellman;
   
 // DiffieHellmanService 服务定义  
 service DiffieHellmanService {  
-    // GetParams 获取Diffie-Hellman密钥交换的参数 
+    // 获取Diffie-Hellman密钥交换的参数 
     rpc GetParams(google.protobuf.Empty) returns (DiffieHellmanParams);  
-    // GetParams 获取Diffie-Hellman密钥交换的随机数r^g%p的结果
+    
+    // 获取Diffie-Hellman密钥交换的随机数r^g%p的结果
     rpc GetRandom(DiffieHellmanRg) returns (DiffieHellmanRg);  
 }  
   
