@@ -70,7 +70,7 @@ In the FSA algorithm, we aim to prevent additional information leakage of the PS
 
 + Key generation: the query user (Tom) generates the public key $pk$ and secret key $sk$, and he will broadcast the public key $pk$ to the data holders (Alice and Bob).
 
-+ Perturbed distance computation: for either Alice and Bob, he/she generates a positive, private, and random number ($a$ for Alice and $b$ for Bob). 
++ Perturbed distance computation: for either Alice or Bob, he/she generates a positive, private, and random number ($a$ for Alice and $b$ for Bob). 
 He/She will always keep the random number as a secret.
 Then, he can peturb the distance and encrypt as follows:
 $$\widetilde{dist}(o^*,q) = a \cdot dist(o^*,q) + a$$
@@ -157,7 +157,7 @@ To solve the **SNNQ** problem, we aim to follow the framework of the FSA algorit
 
 3. How to **securely** pick the nearest neighbor between the local nearest ones from the data holders (Alice and Bob).
 
-#### 2.2.1 Secure Distance Computation
+##### 2.2.1 Secure Distance Computation
 
 Given two objects $o = \{x_1, x_2, \cdots, x_d\}$ and $p = \{y_1, y_2, \cdots, y_d\}$, we can compute the square euclidean distance instead of the square root, i.e.,
 $$dist(o, p) = \sum_{i=1}^{d}{(x_i-y_i)^2}$$
@@ -172,7 +172,7 @@ $$(E_{pk}[x_1]-E_{pk}[y_1])^2 + (E_{pk}[x_2]-E_{pk}[y_2])^2 + \cdots + (E_{pk}[x
 Based on this equation, Tom can first encrypt the query object $q$ with the public key and then send it to Alice or Bob. Alice and Bobe can compute the encrypted square distance based on the above equation and send it back to Tom.
 After receiving the encrypted square distance, Tom can decrypt it with the secret key and obtain the square distance.
 
-#### 2.2.2 Secure Local Nearest Neighbor
+##### 2.2.2 Secure Local Nearest Neighbor
 
 In general, sending the encrypted square distance to Tom will leak additional information about the data objects from Alice or Bob. Thus, instead of sending the distance, Alice or Bob can send the encrypted distance difference, i.e.,
 $$E_{pk}[dist(o_i,q)] - E_{pk}[dist(o_j,q)]$$
@@ -182,44 +182,66 @@ If the value is negative, it implies that $o_i$ is closer to $q$ than $o_j$.
 
 By iteratively checking the distance difference via Tom, both Alice and Bob can obtain their local nearest neighbor.
 
-#### 2.2.3 Secure Global Nearest Neighbor
+##### 2.2.3 Secure Global Nearest Neighbor
 
 As long as Alice and Bob have found their local nearest neighbor, we can further use the FSA algorithm to eventually pick the global nearest neighbor.
 The main difference is that the query user Tom needs to send encrypted query object, i.e., $\{E_{pk}[z_1], E_{pk}[z_2], \cdots, E_{pk}[z_d]\}$, to Alice and Bob.
 The other steps are almost identical to the last step of the FSA algorithm.
 
-**Analysis**: in the naive extension, **secure local nearest neighbor** inadvertently discloses additional information about the distance difference from either Alice or Bob to the query user Tom.
+##### 2.2.4 Analysis
+
+In the naive extension, **secure local nearest neighbor** inadvertently discloses additional information about the distance difference from either Alice or Bob to the query user Tom.
 Moreover, it is time-consuming to securely compute the square distance. Is it possible that we can do better in both security and efficiency?
 
 #### 2.3 Methodology: Optimized Algorithm (OA)
 
-In the FSA algorithm, we aim to prevent additional information leakage of the PSA algorithm by the following procedure.
+In the following, we first introduce how to enhance the security in Section 2.3.1 and then elaborate on how to improve the efficiency in Section 2.3.2.
 
-+ Key generation: the query user (Tom) generates the public key $pk$ and secret key $sk$, and he will broadcast the public key $pk$ to the data holders (Alice and Bob).
+##### 2.3.1 Enhance the Security
 
-+ Perturbed distance computation: for either Alice and Bob, he/she generates a positive, private, and random number ($a$ for Alice and $b$ for Bob). 
-He/She will always keep the random number as a secret.
+Similar to the NFA algorithm for ANNQ problem, we can use a random number to perturb the distance in order to reveal the plaintext distance.
+
++ Key generation: the query user (Tom) generates the public key $pk$ and secret key $sk$, and he will broadcast the public key $pk$ to a data holder (either Alice or Bob).
+
++ Perturbed distance computation: for the participant (e.g., Alice), she generates a positive, private, and random number ($a$ for Alice). 
+She will always keep the random number as a secret.
 Then, he can peturb the distance and encrypt as follows:
-$$\widetilde{dist}(o^*,q) = a \cdot dist(o^*,q) + a$$
-$$\widetilde{dist}(p^*,q) = b \cdot dist(p^*,q) + b$$
-Here, $\widetilde{dist}$ is used to denote the peturbed (plaintext) distance.
+$$\widetilde{dist}(o_i,q) = a \cdot dist(o_i,q)$$
+$$\widetilde{dist}(o_j,q) = a \cdot dist(o_j,q)$$
+Here, $\widetilde{dist}$ is used to denote the peturbed (plaintext) square distance. Similarly, now the encrypted distance difference will be multiplied with a rando number $a$.
 
-+ Exchange encrypted perturbed distance: Alice and Bob encrypt their peturbed distances $E_{pk}[\widetilde{dist}(o^*,q)]$ and $E_{pk}[\widetilde{dist}(p^*,q)]$. Then, they will exchange the encrypted data through network.
++ Decrypt perturbed distance difference: now, Tom receives the perturbed encrypted distance difference and decrypt it with his secrypt key (the decrypted value is denoted as $\Delta$).
+$$E_{pk,sk}^{-1}(E_{pk}[a \cdot (dist(o_i,q) - dist(o_j,q))]) = a \cdot (dist(o_i,q) - dist(o_j,q))$$
 
-+ Double perturbed the encrypted distance: after receiving the encrypted data, Alice and Bob further peturb the encrypted data with their own secret number $a$ and $b$:
-$$a \cdot E_{pk}[\widetilde{dist}(p^*,q)] = E_{pk}[ab \cdot dist(p^*,q) + ab]$$
-$$b \cdot E_{pk}[\widetilde{dist}(o^*,q)] = E_{pk}[ba \cdot dist(o^*,q) + ba]$$
++ Request query answer: if $\Delta = a \cdot (dist(o_i,q) - dist(o_j,q)) < 0$ (where $a>0$), the query user (Tom) will inform the comparison result $o_i \lhd o_j$ to the data holder Alice.
 
-+ Subtract encrypted perturbed distance: 
-Bob send $a \cdot E_{pk}[\widetilde{dist}(p^*,q)]$ to Alice, and Alice will compute the difference of the encrypted perturbed distance:  
-$$b \cdot E_{pk}[\widetilde{dist}(o^*,q)] - a \cdot E_{pk}[\widetilde{dist}(p^*,q)] = E_{pk}[ab \cdot (dist(o^*,q) - dist(p^*,q))]$$
+##### 2.3.2 Improve the Efficiency
 
-+ Decrypt perturbed distance difference: now, Tom receives the encrypted result and decrypt it with his secrypt key (the decrypted value is denoted as $\Delta$).
-$$E_{pk,sk}^{-1}(E_{pk}[ab \cdot dist(p^*,q)]) = ab \cdot (dist(o^*,q) - dist(p^*,q))$$
+The square euclidean distance is defined as
+$$dist(o, q) = \sum_{i=1}^{d}{(x_i-z_i)^2}$$
+Equivalently, it also equals
+$$dist(o, q) = \sum_{i=1}^{d}{x_i^2} + \sum_{i=1}^{d}{z_i^2} - 2\sum_{i=1}^{d}{x_iz_i}$$
 
-+ Request query answer: if $\Delta = ab \cdot (dist(o^*,q) - dist(p^*,q)) < 0$ (where $a>0$ and $b>0$), the query user (Tom) will seek the nearest neighbor $o^*$ from Alice. Otherwise, he will seek the nearest neighbor $p^*$ from Bob.
+Therefore, the difference between the square distance $dist(o_i, p)$ and the square distance $dist(o_j, q)$ is
+$$
+\begin{aligned}
+dist(o_i, q) - dist(o_j, q) &= \Big(\sum_{i=1}^{d}{x_i^2} + \sum_{i=1}^{d}{z_i^2} - 2\sum_{i=1}^{d}{x_iz_i} \Big)  \\
+&\; - \Big(\sum_{i=1}^{d}{y_i^2} + \sum_{i=1}^{d}{z_i^2} - 2\sum_{i=1}^{d}{y_iz_i} \Big) \\
+&= \sum_{i=1}^{d}{x_i^2} - \sum_{i=1}^{d}{y_i^2} - 2\sum_{i=1}^{d}{z_i(x_i-y_i)}
+\end{aligned}
+$$ 
+where $o_i = \{x_1, x_2, \cdots, x_d\}$, $o_j = \{y_1, y_2, \cdots, y_d\}$, and $q = \{z_1, z_2, \cdots, z_d\}$.
 
-**Analysis**: in the FSA algorithm, Tom can only know the peturbed distance (with unknown random number $a$ and $b$). Then, even if Tom and Alice collude, they cannot obtain $dist(p^*,q)$, and vice versa.
+By multiplying 0.5 in both left-hand side and right-hand side of the equation, we have 
+$$
+0.5(dist(o_i, q) - dist(o_j, q)) 
+= 0.5\sum_{i=1}^{d}{x_i^2} - 0.5\sum_{i=1}^{d}{y_i^2} - \sum_{i=1}^{d}{z_i(x_i-y_i)}
+$$ 
+The first two terms can be first computed in plaintext and then encrypted with the public key. The last term can be computed by homomorphic encryption in encrypted data form. By using this way, we can save many secure computations.
+
+##### 2.3.3 Analysis
+
+In the OA algorithm, Tom can only know the peturbed distance (with an unknown random number $a$ or $b$). Then, he cannot derive anything else from Alice and Tom about their data objects.
 
 #### 2.4 Experiment
 
