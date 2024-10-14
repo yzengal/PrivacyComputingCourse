@@ -1,0 +1,34 @@
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+
+package FedSql;
+
+service FedSqlService {
+    rpc GetEncryptDistance(QueryObject) returns (EncryptDistance) {}
+
+    rpc GetQueryAnswer(google.protobuf.Empty) returns (QueryAnswer) {}
+
+    rpc FinishOneQuery(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+};
+
+message QueryObject {
+    // the public key of the HE scheme
+    bytes pk = 1;
+    // the query object with d dimensions
+    repeated int64 data = 2;
+};
+
+message EncryptDistance {
+    // the encrypted distance
+    bytes edist = 1;
+};
+
+message QueryAnswer {
+    // the identifier of the data object
+    int64 vid = 1;
+    // the data object with d dimensions
+    repeated int64 data = 2;
+};
+
+
+
