@@ -1,0 +1,181 @@
+#ifndef UTILS_QUERY_LOGGER_HPP
+#define UTILS_QUERY_LOGGER_HPP
+
+#include <chrono>
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <iomanip>
+#include <vector>
+
+/*
+Helper function: Print line number.
+*/
+void PrintLine(int line_number, std::ostream& os = std::cerr) {  
+    os << "Line " << std::setw(3) << line_number << " --> ";  
+}  
+
+/*
+Helper function: Prints a vector of floating-point values.
+*/
+template <typename T>
+void PrintVector(const std::vector<T>& vec, std::size_t print_size = 4, int prec = 3) {
+    /*
+    Save the formatting information for std::cout.
+    */
+    std::ios old_fmt(NULL);
+    old_fmt.copyfmt(std::cout);
+
+    std::size_t slot_count = vec.size();
+
+    std::cout << std::fixed << std::setprecision(prec);
+    std::cout << std::endl;
+    if (slot_count <= 2 * print_size) {
+        std::cout << "    [";
+        for (std::size_t i = 0; i < slot_count; i++) {
+            std::cout << " " << vec[i] << ((i != slot_count - 1) ? "," : " ]\n");
+        }
+    }
+    else {
+        std::cout << "    [";
+        for (std::size_t i = 0; i < print_size; i++) {
+            std::cout << " " << vec[i] << ",";
+        }
+        std::cout << " ...,";
+        for (std::size_t i = slot_count - print_size; i < slot_count; i++) {
+            std::cout << " " << vec[i] << ((i != slot_count - 1) ? "," : " ]\n");
+        }
+    }
+    std::cout << std::endl;
+
+    /*
+    Restore the old std::cout formatting.
+    */
+    std::cout.copyfmt(old_fmt);
+}
+
+/*
+Helper function: Prints a matrix of values.
+*/
+template <typename T>
+inline void PrintMatrix(std::vector<T> matrix, std::size_t row_size)
+{
+    /*
+    We're not going to print every column of the matrix (there are 2048). Instead
+    print this many slots from beginning and end of the matrix.
+    */
+    std::size_t print_size = 5;
+
+    std::cout << std::endl;
+    std::cout << "    [";
+    for (std::size_t i = 0; i < print_size; i++)
+    {
+        std::cout << std::setw(3) << std::right << matrix[i] << ",";
+    }
+    std::cout << std::setw(3) << " ...,";
+    for (std::size_t i = row_size - print_size; i < row_size; i++)
+    {
+        std::cout << std::setw(3) << matrix[i] << ((i != row_size - 1) ? "," : " ]\n");
+    }
+    std::cout << "    [";
+    for (std::size_t i = row_size; i < row_size + print_size; i++)
+    {
+        std::cout << std::setw(3) << matrix[i] << ",";
+    }
+    std::cout << std::setw(3) << " ...,";
+    for (std::size_t i = 2 * row_size - print_size; i < 2 * row_size; i++)
+    {
+        std::cout << std::setw(3) << matrix[i] << ((i != 2 * row_size - 1) ? "," : " ]\n");
+    }
+    std::cout << std::endl;
+}
+
+class BenchLogger {
+public:
+    BenchLogger() {
+        Init();
+    }
+
+    void Init() {
+        queryNum = 0;
+        queryTime = 0;
+        queryComm = 0;    
+        startTime = std::chrono::steady_clock::now();   
+        endTime = startTime; 
+    }
+
+    void SetStartTimer() {
+        startTime = std::chrono::steady_clock::now(); 
+    }
+
+    void SetEndTimer() {
+        endTime = std::chrono::steady_clock::now(); 
+    }
+
+    void LogAddComm(double _queryComm=0.0f) {
+        queryComm += _queryComm;
+    }
+
+    void LogAddTime() {
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        auto _queryTime = duration.count();
+        queryTime += _queryTime;
+    }
+
+    void LogOneQuery(double _queryComm=0.0f) {
+        LogAddComm(_queryComm);
+
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        auto _queryTime = duration.count();
+
+        queryNum += 1;
+        queryTime += _queryTime;
+
+        endTime = startTime;
+    }
+
+    std::string to_string(size_t prec=2) const {
+        float AvgQueryTime = (queryNum==0) ? 0 : (queryTime/queryNum);
+        float AvgQueryComm = (queryNum==0) ? 0 : (queryComm/queryNum);
+        AvgQueryTime /= 1000.0;
+        AvgQueryComm /= 1024.0;
+        std::stringstream ss;
+
+        // ss << "-------------- Query Log --------------\n";
+        ss << queryNum << " queries: runtime = " << AvgQueryTime << " [s], communication = " << AvgQueryComm << " [KB] per query" << std::endl;
+
+        return ss.str();
+    }
+
+    void Print() const {
+        float AvgQueryTime = (queryNum==0) ? 0 : (queryTime/queryNum);
+        float AvgQueryComm = (queryNum==0) ? 0 : (queryComm/queryNum);
+        AvgQueryTime /= 1000.0;
+        AvgQueryComm /= 1024.0;
+        std::cout << "-------------- Query Log --------------\n";
+        std::cout << std::fixed << std::setprecision(6)
+                    << queryNum << " queries: runtime = " << AvgQueryTime << " [s], communication = " << AvgQueryComm << " [KB] per query" << std::endl;
+    }
+
+    double GetDurationTime() const {
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        double queryTime = duration.count();
+        return queryTime;
+    }
+
+    double GetQueryTime() const {
+        return queryTime;
+    }
+
+    double GetQueryComm() const {
+        return queryComm;
+    }
+
+private:
+    std::chrono::steady_clock::time_point startTime, endTime;
+    size_t queryNum;
+    double queryTime;
+    double queryComm;
+};
+
+#endif  // UTILS_QUERY_LOGGER_HPP
