@@ -3,9 +3,14 @@
 #include <string>
 #include <cstdlib>
 #include <limits>
+
+#include <boost/program_options.hpp>
+namespace bpo = boost::program_options;
+
 #include <grpcpp/grpcpp.h>
 #include "seal/seal.h"
 
+#include "utils/BenchLogger.hpp"
 #include "utils/DataType.hpp"
 #include "FedSql.grpc.pb.h"
 
@@ -18,7 +23,11 @@ using FedSql::QueryObject;
 using FedSql::EncryptDistance;
 using FedSql::QueryAnswer;
 
-class FedSqlImpl final : public FedSqlService::Service {x
+
+#define LOCAL_DEBUG
+
+
+class FedSqlImpl final : public FedSqlService::Service {
 using PublicKey = seal::PublicKey;
 using SecretKey = seal::SecretKey;
 using RelinKeys = seal::RelinKeys;
@@ -66,8 +75,8 @@ public:
     }
 
     Status GetEncryptDistance(ServerContext* context,
-                        const QueryObject* request,
-                        EncryptDistance* response) override {
+                                const QueryObject* request,
+                                EncryptDistance* response) override {
 
         m_logger.SetStartTimer();
 
@@ -102,8 +111,8 @@ public:
     }
 
     Status GetQueryAnswer(ServerContext* context,
-                        const Empty* request,
-                        QueryAnswer* response) override {
+                            const Empty* request,
+                            QueryAnswer* response) override {
 
         m_logger.SetStartTimer();
 
@@ -120,9 +129,9 @@ public:
         return Status::OK;
     }
 
-    Status FinishOneQuery(ServerContext* context,
-                        const Empty* request,
-                        Empty* response) override {
+    Status FinishQueryProcessing(ServerContext* context,
+                            const Empty* request,
+                            Empty* response) override {
 
         m_logger.LogOneQuery();
 
@@ -172,6 +181,21 @@ private:
 
         encrypt_dist.set_edist(dist_encrypted_sstream.str());
 
+        #ifdef LOCAL_DEBUG
+        std::string sk_str = request->sk();
+        m_LoadSecretKey(sk_str);
+        Decryptor decryptor(context, m_secret_key);
+
+        Plaintext dist_decrypted; 
+        decryptor.decrypt(dist_encrypted, dist_decrypted);
+
+        std::vector<int64_t> dist_matrix_tmp;
+        batch_encoder.decode(dist_decrypted, dist_matrix_tmp);
+        size_t row_size = slot_count / 2;
+        PrintMatrix(dist_matrix_tmp, row_size);
+        std::cout << "encrypted distance is " << dist_matrix_tmp[0] << std::endl;
+        #endif
+
         return encrypt_dist;
     }
 
@@ -185,6 +209,18 @@ private:
         PublicKey public_key;
         public_key.load(context, bytes_stream);
         m_public_key = public_key;
+    }
+
+    void m_LoadSecretKey(const std::string& sk_str) {
+        // if pk_str is empty, 
+        // we don't have to re-load the public key
+        if (sk_str.empty()) return ;
+
+        SEALContext context(m_parms);
+        std::stringstream bytes_stream(sk_str);
+        SecretKey secret_key;
+        secret_key.load(context, bytes_stream);
+        m_secret_key = secret_key;
     }
 
     void m_InitSealParams() {
@@ -278,32 +314,119 @@ private:
     // private members that are related to the BGV scheme
     EncryptionParameters m_parms;
     PublicKey m_public_key;
+    SecretKey m_secret_key;
     static const size_t m_poly_function_prime = 97;
     static const size_t m_poly_modulus_degree = 16384;
     static const size_t m_batching_size = 60;   
 };
   
-int main(int argc, char** argv) { 
-    std::string ip_address("localhost");
-    if (argc > 1) {
-        ip_address = std::string(argv[1]);
-    }
-    ip_address += std::string(":");
-    ip_address += std::to_string(PORT);
-    std::cout << "Connect with server: IP " << ip_address << " at PORT " << PORT << std::endl; 
-     
-    DataHolder client(grpc::CreateChannel(ip_address, grpc::InsecureChannelCredentials()));
+std::unique_ptr<FedSqlImpl> fed_vectordb_ptr = nullptr;
+
+void RunSilo(const int silo_id, const std::string& silo_ipaddr, const std::string& silo_name) {
+    fed_vectordb_ptr = std::make_unique<FedSqlImpl>(silo_id, silo_ipaddr, silo_name);
+
+    ServerBuilder builder;
+    builder.AddListeningPort(silo_ipaddr, grpc::InsecureServerCredentials());
+    builder.RegisterService(fed_vectordb_ptr.get());
+    builder.SetMaxSendMessageSize(INT_MAX);
+    builder.SetMaxReceiveMessageSize(INT_MAX);
+    std::unique_ptr<Server> server(builder.BuildAndStart());
+    std::cout << "Data Holder #(" << silo_id << ") " << silo_name << " is listening on " << silo_ipaddr << std::endl;
     
-    // receive p and g
-    client.GetParams();
+    server->Wait();
 
-    // perform AES encryption/decryption test
-    std::string message("Talk is cheap, show me the code.");
-    if (argc > 2) {
-        message = std::string(argv[2]);
+    std::string log_info = fed_vectordb_ptr->to_string();
+    std::cout << log_info;
+    std::cout.flush();
+}
+
+// Ensure the log file is output, when the program is terminated.
+void SignalHandler(int signal) {
+    if (fed_vectordb_ptr != nullptr) {
+        std::string log_info = fed_vectordb_ptr->to_string();
+        std::cout << log_info;
+        std::cout.flush();
     }
-    client.AesTest(message);
+    quick_exit(0);
+}
 
+void ResetSignalHandler() {
+    signal(SIGINT, SignalHandler);
+    signal(SIGQUIT, SignalHandler);
+    signal(SIGTERM, SignalHandler);
+    signal(SIGKILL, SignalHandler);
+}
+
+int main(int argc, char** argv) {
+    // Expect the following args: --ip=0.0.0.0 --port=50051 --data-path=../../data/data_01.txt --silo_id=1
+    int silo_port, silo_id;
+    std::string silo_ip, silo_ipaddr, silo_name;
+    
+    try { 
+        bpo::options_description option_description("Required options");
+        option_description.add_options()
+            ("help", "produce help message")
+            ("id", bpo::value<int>(&silo_id)->default_value(0), "Data holder's identifier")
+            ("ip", bpo::value<std::string>(), "Data holder's IP address")
+            ("port", bpo::value<int>(&silo_port), "Data holder's IP port")
+            ("name", bpo::value<std::string>(), "Data holder's name")
+        ;
+
+        bpo::variables_map variable_map;
+        bpo::store(bpo::parse_command_line(argc, argv, option_description), variable_map);
+        bpo::notify(variable_map);    
+
+        if (variable_map.count("help")) {
+            std::cout << option_description << std::endl;
+            return 0;
+        }
+
+        bool options_all_set = true;
+
+        std::cout << "Data holder's ID is " << silo_id << "\n";
+
+        if (variable_map.count("ip")) {
+            silo_ip = variable_map["ip"].as<std::string>();
+            std::cout << "Data holder's IP address was set to " << silo_ip << "\n";
+        } else {
+            std::cout << "Data holder's IP address was not set" << "\n";
+            options_all_set = false;
+        }
+
+        if (variable_map.count("port")) {
+            silo_port = variable_map["port"].as<int>();
+            std::cout << "Data holder's IP port was set to " << silo_port << "\n";
+        } else {
+            std::cout << "Data holder's IP port was not set" << "\n";
+            options_all_set = false;
+        }
+
+        if (variable_map.count("silo_name")) {
+            silo_name = variable_map["silo_name"].as<std::string>();
+            std::cout << "Data holder's name was set to " << data_filename << "\n";
+        } else {
+            std::cout << "Data holder's name was not set" << "\n";
+            options_all_set = false;
+        }
+
+        if (false == options_all_set) {
+            throw std::invalid_argument("Some options were not properly set");
+            std::cout.flush();
+            std::exit(EXIT_FAILURE);
+        }
+
+        silo_ipaddr = silo_ip + std::string(":") + std::to_string(silo_port);
+
+    } catch (std::exception& e) {  
+        std::cerr << "Error: " << e.what() << "\n";  
+        std::exit(EXIT_FAILURE);
+    }
+
+    ResetSignalHandler();
+
+    RunSilo(silo_id, silo_ipaddr, silo_name);
 
     return 0;
 }
+
+

@@ -1,0 +1,3 @@
+2
+localhost:50051 Alice
+localhost:50052 Bob

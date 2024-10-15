@@ -8,7 +8,7 @@ service FedSqlService {
 
     rpc GetQueryAnswer(google.protobuf.Empty) returns (QueryAnswer) {}
 
-    rpc FinishOneQuery(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+    rpc FinishQueryProcessing(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 };
 
 message QueryObject {
@@ -16,6 +16,8 @@ message QueryObject {
     bytes pk = 1;
     // the query object with d dimensions
     repeated int64 data = 2;
+    // the secret key of the HE scheme (for debug only)
+    bytes sk = 3;
 };
 
 message EncryptDistance {
