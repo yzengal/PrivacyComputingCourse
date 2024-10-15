@@ -188,7 +188,7 @@ public:
         m_logger.Init();
     }
 
-    void ProcessANNQ(const int dim=128) {
+    void ProcessANNQ(const int dim) {
         // Step 0: Initialize local variables
         m_InitBenchLogger();
         m_logger.SetStartTimer();
@@ -210,7 +210,7 @@ public:
         // Step 2: Get encrypt distance from all data holders
         m_GetEncryptDistance(query_data);
 
-        // Step 3: Get decrypt distance from all data holders and determine the nearest one
+        // Step 3: Decrypt distances from all data holders and determine the nearest one
         int nearest_silo_id = m_GetDecryptNearestDistance();
 
         // Step 4: Obtain query answer from specific data holder
@@ -551,4 +551,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-

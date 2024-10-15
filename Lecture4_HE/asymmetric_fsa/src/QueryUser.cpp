@@ -68,34 +68,35 @@ public:
         m_logger.Init();
     }
 
-    void GetEncryptDistance(const QueryObject& query_object) {
+    void BroadcastQueryObject(const QueryObject& query_object) {
         ClientContext context;
+        Empty response;
 
-        Status status = m_stub_->GetEncryptDistance(&context, query_object, &m_encrypt_dist); 
+        Status status = m_stub_->BroadcastQueryObject(&context, query_object, &response); 
         if (!status.ok()) {
             std::cerr << "RPC failed: " << status.error_message() << std::endl;
             std::string error_message;
-            error_message = std::string("Get encrypt distance from data silo #(") + std::to_string(m_silo_id) + std::string(") failed");
+            error_message = std::string("Broadcast query object to data silo #(") + std::to_string(m_silo_id) + std::string(") failed");
             throw std::invalid_argument(error_message);
         }
 
-        float grpc_comm = query_object.ByteSizeLong() + m_encrypt_dist.ByteSizeLong();
+        float grpc_comm = query_object.ByteSizeLong() + response.ByteSizeLong();
         m_logger.LogAddComm(grpc_comm);
     }
 
-    void GetEncryptPerturbDistance(const QueryObject& query_object, const std::string& other_ip_addr) {
+    void GetEncryptPerturbDistance() {
         ClientContext context;
+        Empty request;
 
-        query_object.set_ipaddr(other_ip_addr);
-        Status status = m_stub_->GetEncryptPerturbDistance(&context, query_object, &m_encrypt_dist); 
+        Status status = m_stub_->GetEncryptPerturbDistance(&context, request, &m_encrypt_dist); 
         if (!status.ok()) {
             std::cerr << "RPC failed: " << status.error_message() << std::endl;
             std::string error_message;
-            error_message = std::string("Get encrypt distance from data silo #(") + std::to_string(m_silo_id) + std::string(") failed");
+            error_message = std::string("Get encrypt perturb distance from data silo #(") + std::to_string(m_silo_id) + std::string(") failed");
             throw std::invalid_argument(error_message);
         }
 
-        float grpc_comm = query_object.ByteSizeLong() + m_encrypt_dist.ByteSizeLong();
+        float grpc_comm = request.ByteSizeLong() + m_encrypt_dist.ByteSizeLong();
         m_logger.LogAddComm(grpc_comm);
     }
 
@@ -140,7 +141,7 @@ public:
         m_logger.LogAddComm(grpc_comm);
     } 
 
-    EncryptDistance GetEncryptDistance() const {
+    EncryptDistance PerturbEncryptDistance() const {
         return m_encrypt_dist;
     }
 
@@ -152,12 +153,16 @@ public:
         m_logger.Init();
     }
 
+    static void ThreadBroadcastQueryObject(DataHolderReceiver* silo_receiver, const QueryObject& query_object) {  
+        silo_receiver->BroadcastQueryObject(query_object);
+    }
+
     static void ThreadGetEncryptDistance(DataHolderReceiver* silo_receiver, const QueryObject& query_object) {  
         silo_receiver->GetEncryptDistance(query_object);
     }
 
-    static void ThreadGetEncryptPerturbDistance(DataHolderReceiver* silo_receiver, const QueryObject& query_object, const std::string& other_ip_addr) {  
-        silo_receiver->GetEncryptPerturbDistance(query_object, other_ip_addr);
+    static void ThreadGetEncryptPerturbDistance(DataHolderReceiver* silo_receiver) {  
+        silo_receiver->GetEncryptPerturbDistance();
     }
 
     static void ThreadGetDecryptDistance(DataHolderReceiver* silo_receiver, const std::string& edist_str, const EncryptionParameters& params, const SecretKey& secret_key, VectorDimensionType& dist) {  
@@ -208,10 +213,11 @@ public:
         m_logger.Init();
     }
 
-    void PsaAnnq(const int dim) {
+    void ProcessANNQ(const int dim) {
         // Step 0: Initialize local variables
         m_InitBenchLogger();
         m_logger.SetStartTimer();
+        m_dim = dim;
 
         // Step 1: Generator query object
         std::vector<VectorDimensionType> arr(dim);
@@ -227,55 +233,13 @@ public:
         std::cout << std::endl;
         std::cout << "Query object " << query_data.to_string() << std::endl;
 
-        // Step 2: Get encrypt distance from all data holders
-        m_GetEncryptDistance(query_data);
+        // Step 2: Broadcast the query object to data holders
+        m_BroadcastQueryObject(query_data);
 
-        // Step 3: Get decrypt distance from all data holders and determine the nearest one
-        int nearest_silo_id = m_GetDecryptNearestDistance();
+        // Step 3: Get encrypt perturb distance from Alice (not Bob)
+        m_GetEncryptPerturbDistance();
 
-        // Step 4: Obtain query answer from specific data holder
-        VectorDataType query_answer = m_GetQueryAnswer(nearest_silo_id);
-
-        // Step 5: Finish query processing at each data holder
-        m_FinishQueryProcessing();
-
-        // Step 6: Print the log information
-        m_logger.SetEndTimer();
-        double query_comm = 0.0;
-        for (int i=0; i<m_silo_num; ++i) {
-            query_comm += m_silo_receiver_list[i]->GetQueryComm();
-        }
-        double query_time = m_logger.GetDurationTime();
-        m_logger.LogOneQuery(query_comm);
-
-        std::cout << std::fixed << std::setprecision(6) 
-                    << "Query #(" << query_data.vid << "): runtime = " << query_time/1000.0 << " [s], communication = " << query_comm/1024.0 << " [KB]" << std::endl;
-        std::cout << "Answer #(" << query_data.vid << "): data holder = " << m_silo_name_list[nearest_silo_id] << ", data = " << query_answer.to_string() << std::endl;
-    }
-
-    void FsaAnnq(const int dim=128) {
-        // Step 0: Initialize local variables
-        m_InitBenchLogger();
-        m_logger.SetStartTimer();
-
-        // Step 1: Generator query object
-        std::vector<VectorDimensionType> arr(dim);
-        const int base = 10000;
-        std::random_device rd;  // 用于获取随机数种子  
-        std::default_random_engine eng(rd());  // 使用随机种子初始化引擎  
-        // 创建均匀分布的整数随机数生成器，范围在 [1, 100]  
-        std::uniform_int_distribution<> distribution(1, base); 
-        for (int j=0; j<dim; ++j) {
-            arr[j] = distribution(eng);
-        }
-        VectorDataType query_data(dim, m_query_num++, arr);
-        std::cout << std::endl;
-        std::cout << "Query object " << query_data.to_string() << std::endl;
-
-        // Step 2: Get perturb encrypt distance from all data holders
-        m_GetEncryptPerturbDistance(query_data);
-
-        // Step 3: Get decrypt distance from all data holders and determine the nearest one
+        // Step 3: Decrypt distance difference and determine the nearest one
         int nearest_silo_id = m_GetDecryptPerturbNearestDistance();
 
         // Step 4: Obtain query answer from specific data holder
@@ -309,32 +273,39 @@ public:
     }
 
 private:
-    void m_GetEncryptPerturbDistance(const VectorDataType& query_data) {
+    void m_GetEncryptPerturbDistance() {
+        const int silo_num = m_silo_ipaddr_list.size();
+        std::vector<std::thread> thread_list(silo_num);
+
+        for (int i=0; i<silo_num; i+=2) {
+            thread_list[i] = std::thread(DataHolderReceiver::ThreadGetEncryptPerturbDistance, m_silo_receiver_list[i].get());
+        }
+        for (int i=0; i<silo_num; i+=2) {
+            thread_list[i].join();
+        }
+    }
+
+    void m_BroadcastQueryObject(const VectorDataType& query_data) {
         QueryObject query_object;
 
         std::stringstream m_public_key_sstream;
         m_public_key.save(m_public_key_sstream);
         query_object.set_pk(m_public_key_sstream.str());
-        const int dim = query_data.Dimension();
-        for (int i=0; i<dim; ++i) {
+        for (int i=0; i<m_dim; ++i) {
             query_object.add_data(query_data.data[i]);
         }
-        #ifdef LOCAL_DEBUG
-        std::stringstream m_secret_key_sstream;
-        m_secret_key.save(m_secret_key_sstream);
-        query_object.set_sk(m_secret_key_sstream.str());
-        #endif
 
         const int silo_num = m_silo_ipaddr_list.size();
         std::vector<std::thread> thread_list(silo_num);
 
         for (int i=0; i<silo_num; ++i) {
             std::string other_silo_ipaddr = m_silo_ipaddr_list[i^1];
-            thread_list[i] = std::thread(DataHolderReceiver::ThreadGetEncryptPerturbDistance, m_silo_receiver_list[i].get(), query_object, other_silo_ipaddr);
+            query_object.set_ipaddr(other_silo_ipaddr);
+            thread_list[i] = std::thread(DataHolderReceiver::ThreadBroadcastQueryObject, m_silo_receiver_list[i].get(), query_object);
         }
         for (int i=0; i<silo_num; ++i) {
             thread_list[i].join();
-        }
+        }        
     }
 
     void m_GetEncryptDistance(const VectorDataType& query_data) {
@@ -364,23 +335,23 @@ private:
         }
     }
 
-    int m_GetDecryptNearestDistance() {
+    int m_GetDecryptPerturbNearestDistance() {
         const int silo_num = m_silo_ipaddr_list.size();
         std::vector<std::thread> thread_list(silo_num);
         std::vector<VectorDimensionType> dist_list(silo_num);
 
-        for (int i=0; i<silo_num; ++i) {
-            EncryptDistance encrypt_dist = m_silo_receiver_list[i]->GetEncryptDistance();
+        for (int i=0; i<silo_num; i+=2) {
+            EncryptDistance encrypt_dist = m_silo_receiver_list[i]->PerturbEncryptDistance();
             std::string edist_str = encrypt_dist.edist();
             thread_list[i] = std::thread(DataHolderReceiver::ThreadGetDecryptDistance, m_silo_receiver_list[i].get(), edist_str, m_parms, m_secret_key, std::ref(dist_list[i]));
         }
-        for (int i=0; i<silo_num; ++i) {
+        for (int i=0; i<silo_num; i+=2) {
             thread_list[i].join();
         }
 
         int nearest_silo_id = 0;
-        for (int i=0; i<silo_num; ++i) {
-            if (dist_list[i] < dist_list[nearest_silo_id]) {
+        for (int i=0; i<silo_num; i+=2) {
+            if (dist_list[i] < 0) {
                 nearest_silo_id = i;
             }
             #ifdef LOCAL_DEBUG
@@ -545,6 +516,7 @@ private:
     VidType m_query_num;
     BenchLogger m_logger;
     int m_silo_num;
+    int m_dim;
 
     // related to the BGV scheme in Microsoft SEAL
     EncryptionParameters m_parms;
@@ -644,4 +616,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-

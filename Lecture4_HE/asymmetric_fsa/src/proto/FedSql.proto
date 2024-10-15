@@ -4,13 +4,15 @@ import "google/protobuf/empty.proto";
 package FedSql;
 
 service FedSqlService {
-    rpc GetEncryptDistance(QueryObject) returns (EncryptDistance) {}
+    rpc BroadcastQueryObject(QueryObject) returns (google.protobuf.Empty) {}
 
     rpc GetQueryAnswer(google.protobuf.Empty) returns (QueryAnswer) {}
 
     rpc FinishQueryProcessing(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 
-    rpc GetEncryptPerturbDistance(QueryObject) returns (EncryptDistance) {}
+    rpc GetEncryptPerturbDistance(google.protobuf.Empty) returns (EncryptDistance) {}
+
+    rpc GetEncryptDoublePerturbDistance(google.protobuf.Empty) returns (EncryptDistance) {}
 
     rpc ExchangeEncryptPerturbDistance(EncryptDistance) returns (EncryptDistance) {}
 };
@@ -37,6 +39,3 @@ message QueryAnswer {
     // the data object with d dimensions
     repeated int64 data = 2;
 };
-
-
-
