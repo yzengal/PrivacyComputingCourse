@@ -32,9 +32,8 @@ $$dist(o, p) = \sqrt{\sum_{i=1}^{d}{(x_i-y_i)^2}}$$
 
 Based on the above concepts, the formal problem definition of **Asymmetric Nearest Neighbor Query** (**ANNQ** as short) is given as follows (we assume that there're only two data holders for simplicity).
 We are given **two** data holders (i.e., Alice and Bob) and **one** query user (i.e., Tom). Among these participants, Alice holds a set $X$ of data objects, 
-and Bob holds a set $Y$ of data objects,
-where $X = \{o_1, o_2, \cdots, o_n\}$ and $Y = \{p_1, p_2, \cdots, p_n\}$.
-The query user wants to find the nearest neighbor $NN$ in $X \cup Y$ to the query object $q$, where the set $X$ and $Y$ are assumed to be disjoint, i.e.,
+and Bob holds a set $Y$ of data objects, where $X = \{o_1, o_2, \cdots, o_n\}$ and $Y = \{p_1, p_2, \cdots, p_n\}$.
+The query user wants to find the nearest neighbor $NN$ in $X \cup Y$ to the query object $q$, where the set $X$ and $Y$ are assumed to be disjoint, i.e.,  
 $$\forall o \in X, dist(NN, q) \le dist(o, q)$$
 $$\forall p \in Y, dist(NN, q) \le dist(p, q)$$
 Moreover, there are additional security requirements:  
@@ -49,20 +48,20 @@ Notice: if there are more than two distinct objects in $X \cup Y$ that achieve t
 To solve the **ANNQ** problem, we propose a secure and efficient algorithm as follows:  
 1. The query user (Tom) sends the query object $q$ to the data holders (Alice and Bob);
 
-2. After receiving the query object, both Alice and Bob can compute the nearest neighbor to the query object $q$ within their local dataset, say $o^*$ and $p^*$.
+2. After receiving the query object, both Alice and Bob can compute the nearest neighbor to the query object $q$ within their local dataset, say $o^{\ast}$ and $p^{\ast}$.
 
-3. Next, we only need to **securely** pick the nearest one between $o^*$ and $p^*$, which is very similar to **The Millionaire Problem**. The key distinction lies in the fact that, in the ANNQ problem, neither Alice nor Bob can know the comparison result, whereas in the millionaire problem, either Alice or Bob is privy to the outcome of the comparison. Therefore, we can leverage **Homomorphic Encryption** (i.e., the BGV scheme in [Microsoft SEAL](https://github.com/microsoft/SEAL)) to tackle the problem as follows.
+3. Next, we only need to **securely** pick the nearest one between $o^{\ast}$ and $p^{\ast}$, which is very similar to **The Millionaire Problem**. The key distinction lies in the fact that, in the ANNQ problem, neither Alice nor Bob can know the comparison result, whereas in the millionaire problem, either Alice or Bob is privy to the outcome of the comparison. Therefore, we can leverage **Homomorphic Encryption** (i.e., the BGV scheme in [Microsoft SEAL](https://github.com/microsoft/SEAL)) to tackle the problem as follows.
 
     + Key generation: the query user (Tom) generates the public key $pk$ and secret key $sk$, and he will broadcast the public key $pk$ to the data holders (Alice and Bob).
 
-    + Distance difference encryption: both Alice and Bob can encrypt their nearest distance to the query object $q$: $E_{pk}[dist(o^*,q)]$ and $E_{pk}[dist(p^*,q)]$. After that, the encrypted distances will undergo subtraction (e.g., by Alice who receives $E_{pk}[dist(p^*,q)]$ from Bob), and the (encrypted) result will be sent to the query user Tom.
+    + Distance difference encryption: both Alice and Bob can encrypt their nearest distance to the query object $q$: $E_{pk}[dist(o^{\ast},q)]$ and $E_{pk}[dist(p^{\ast},q)]$. After that, the encrypted distances will undergo subtraction (e.g., by Alice who receives $E_{pk}[dist(p^{\ast},q)]$ from Bob), and the (encrypted) result will be sent to the query user Tom.
 
     + Distance difference decryption: now, Tom receives the encrypted result and decrypt it with his secrypt key (the decrypted value is denoted as $\Delta$).
-    $$E_{pk,sk}^{-1}(E_{pk}[dist(o^*,q)] - E_{pk}[dist(p^*,q)]) = dist(o^*,q) - dist(p^*,q)$$
+    $$E_{pk,sk}^{-1}(E_{pk}[dist(o^{\ast},q)] - E_{pk}[dist(p^{\ast},q)]) = dist(o^{\ast},q) - dist(p^{\ast},q)$$
 
-    + Request query answer: if $\Delta = dist(o^*,q) - dist(p^*,q) < 0$, the query user (Tom) will seek the nearest neighbor $o^*$ from Alice. Otherwise, he will seek the nearest neighbor $p^*$ from Bob.
+    + Request query answer: if $\Delta = dist(o^{\ast},q) - dist(p^{\ast},q) < 0$, the query user (Tom) will seek the nearest neighbor $o^{\ast}$ from Alice. Otherwise, he will seek the nearest neighbor $p^{\ast}$ from Bob.
 
-**Analysis**: in the PSA algorithm, the last step inadvertently discloses additional information about $dist(p^*,q)$ from Bob to the query user Tom, when $o^*$ from Alice is the nearest neighbor, and vice versa.
+**Analysis**: in the PSA algorithm, the last step inadvertently discloses additional information about $dist(p^{\ast},q)$ from Bob to the query user Tom, when $o^{\ast}$ from Alice is the nearest neighbor, and vice versa.
 
 #### 1.3 Methodology: Fully Secure Algorithm (FSA)
 
@@ -73,26 +72,26 @@ In the FSA algorithm, we aim to prevent additional information leakage of the PS
 + Perturbed distance computation: for either Alice or Bob, he/she generates a positive, private, and random number ($a$ for Alice and $b$ for Bob). 
 He/She will always keep the random number as a secret.
 Then, he can peturb the distance and encrypt as follows:
-$$\widetilde{dist}(o^*,q) = a \cdot dist(o^*,q) + a$$
-$$\widetilde{dist}(p^*,q) = b \cdot dist(p^*,q) + b$$
+$$\widetilde{dist}(o^{\ast},q) = a \cdot dist(o^{\ast},q) + a$$
+$$\widetilde{dist}(p^{\ast},q) = b \cdot dist(p^{\ast},q) + b$$
 Here, $\widetilde{dist}$ is used to denote the peturbed (plaintext) distance.
 
-+ Exchange encrypted perturbed distance: Alice and Bob encrypt their peturbed distances $E_{pk}[\widetilde{dist}(o^*,q)]$ and $E_{pk}[\widetilde{dist}(p^*,q)]$. Then, they will exchange the encrypted data through network.
++ Exchange encrypted perturbed distance: Alice and Bob encrypt their peturbed distances $E_{pk}[\widetilde{dist}(o^{\ast},q)]$ and $E_{pk}[\widetilde{dist}(p^{\ast},q)]$. Then, they will exchange the encrypted data through network.
 
 + Double perturbed the encrypted distance: after receiving the encrypted data, Alice and Bob further peturb the encrypted data with their own secret number $a$ and $b$:
-$$a \cdot E_{pk}[\widetilde{dist}(p^*,q)] = E_{pk}[ab \cdot dist(p^*,q) + ab]$$
-$$b \cdot E_{pk}[\widetilde{dist}(o^*,q)] = E_{pk}[ba \cdot dist(o^*,q) + ba]$$
+$$a \cdot E_{pk}[\widetilde{dist}(p^{\ast},q)] = E_{pk}[ab \cdot dist(p^{\ast},q) + ab]$$
+$$b \cdot E_{pk}[\widetilde{dist}(o^{\ast},q)] = E_{pk}[ba \cdot dist(o^{\ast},q) + ba]$$
 
 + Subtract encrypted perturbed distance: 
-Bob send $a \cdot E_{pk}[\widetilde{dist}(p^*,q)]$ to Alice, and Alice will compute the difference of the encrypted perturbed distance:  
-$$b \cdot E_{pk}[\widetilde{dist}(o^*,q)] - a \cdot E_{pk}[\widetilde{dist}(p^*,q)] = E_{pk}[ab \cdot (dist(o^*,q) - dist(p^*,q))]$$
+Bob send $a \cdot E_{pk}[\widetilde{dist}(p^{\ast},q)]$ to Alice, and Alice will compute the difference of the encrypted perturbed distance:  
+$$b \cdot E_{pk}[\widetilde{dist}(o^{\ast},q)] - a \cdot E_{pk}[\widetilde{dist}(p^{\ast},q)] = E_{pk}[ab \cdot (dist(o^{\ast},q) - dist(p^{\ast},q))]$$
 
 + Decrypt perturbed distance difference: now, Tom receives the encrypted result and decrypt it with his secrypt key (the decrypted value is denoted as $\Delta$).
-$$E_{pk,sk}^{-1}(E_{pk}[ab \cdot dist(p^*,q)]) = ab \cdot (dist(o^*,q) - dist(p^*,q))$$
+$$E_{pk,sk}^{-1}(E_{pk}[ab \cdot dist(p^{\ast},q)]) = ab \cdot (dist(o^{\ast},q) - dist(p^{\ast},q))$$
 
-+ Request query answer: if $\Delta = ab \cdot (dist(o^*,q) - dist(p^*,q)) < 0$ (where $a>0$ and $b>0$), the query user (Tom) will seek the nearest neighbor $o^*$ from Alice. Otherwise, he will seek the nearest neighbor $p^*$ from Bob.
++ Request query answer: if $\Delta = ab \cdot (dist(o^{\ast},q) - dist(p^{\ast},q)) < 0$ (where $a>0$ and $b>0$), the query user (Tom) will seek the nearest neighbor $o^{\ast}$ from Alice. Otherwise, he will seek the nearest neighbor $p^{\ast}$ from Bob.
 
-**Analysis**: in the FSA algorithm, Tom can only know the peturbed distance (with unknown random number $a$ and $b$). Then, even if Tom and Alice collude, they cannot obtain $dist(p^*,q)$, and vice versa.
+**Analysis**: in the FSA algorithm, Tom can only know the peturbed distance (with unknown random number $a$ and $b$). Then, even if Tom and Alice collude, they cannot obtain $dist(p^{\ast},q)$, and vice versa.
 
 #### 1.4 Experiment
 
