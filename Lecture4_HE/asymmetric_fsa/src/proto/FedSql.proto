@@ -31,6 +31,8 @@ message QueryObject {
 message EncryptDistance {
     // the encrypted distance
     bytes edist = 1;
+    // the communication cost between Alice and Bob
+    float comm = 2;
 };
 
 message QueryAnswer {

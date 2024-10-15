@@ -2,9 +2,9 @@
 
 ORIGINAL_DIR=$(pwd)
 cd ../build
-holder_id=2
-port=$((50050 + ${holder_id}))
-n=500
+holder_id=1
+port=$((50051 + ${holder_id}))
+n=5
 dim=128
 name=Bob
 

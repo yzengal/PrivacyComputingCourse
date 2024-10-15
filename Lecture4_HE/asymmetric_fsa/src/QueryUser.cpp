@@ -97,6 +97,7 @@ public:
         }
 
         float grpc_comm = request.ByteSizeLong() + m_encrypt_dist.ByteSizeLong();
+        grpc_comm += m_encrypt_dist.comm();
         m_logger.LogAddComm(grpc_comm);
     }
 
@@ -155,10 +156,6 @@ public:
 
     static void ThreadBroadcastQueryObject(DataHolderReceiver* silo_receiver, const QueryObject& query_object) {  
         silo_receiver->BroadcastQueryObject(query_object);
-    }
-
-    static void ThreadGetEncryptDistance(DataHolderReceiver* silo_receiver, const QueryObject& query_object) {  
-        silo_receiver->GetEncryptDistance(query_object);
     }
 
     static void ThreadGetEncryptPerturbDistance(DataHolderReceiver* silo_receiver) {  
@@ -221,7 +218,7 @@ public:
 
         // Step 1: Generator query object
         std::vector<VectorDimensionType> arr(dim);
-        const int base = 10000;
+        const int base = 100;
         std::random_device rd;  // 用于获取随机数种子  
         std::default_random_engine eng(rd());  // 使用随机种子初始化引擎  
         // 创建均匀分布的整数随机数生成器，范围在 [1, 100]  
@@ -294,6 +291,11 @@ private:
         for (int i=0; i<m_dim; ++i) {
             query_object.add_data(query_data.data[i]);
         }
+        #ifdef LOCAL_DEBUG
+        std::stringstream m_secret_key_sstream;
+        m_secret_key.save(m_secret_key_sstream);
+        query_object.set_sk(m_secret_key_sstream.str());
+        #endif
 
         const int silo_num = m_silo_ipaddr_list.size();
         std::vector<std::thread> thread_list(silo_num);
@@ -306,33 +308,6 @@ private:
         for (int i=0; i<silo_num; ++i) {
             thread_list[i].join();
         }        
-    }
-
-    void m_GetEncryptDistance(const VectorDataType& query_data) {
-        QueryObject query_object;
-
-        std::stringstream m_public_key_sstream;
-        m_public_key.save(m_public_key_sstream);
-        query_object.set_pk(m_public_key_sstream.str());
-        const int dim = query_data.Dimension();
-        for (int i=0; i<dim; ++i) {
-            query_object.add_data(query_data.data[i]);
-        }
-        #ifdef LOCAL_DEBUG
-        std::stringstream m_secret_key_sstream;
-        m_secret_key.save(m_secret_key_sstream);
-        query_object.set_sk(m_secret_key_sstream.str());
-        #endif
-
-        const int silo_num = m_silo_ipaddr_list.size();
-        std::vector<std::thread> thread_list(silo_num);
-
-        for (int i=0; i<silo_num; ++i) {
-            thread_list[i] = std::thread(DataHolderReceiver::ThreadGetEncryptDistance, m_silo_receiver_list[i].get(), query_object);
-        }
-        for (int i=0; i<silo_num; ++i) {
-            thread_list[i].join();
-        }
     }
 
     int m_GetDecryptPerturbNearestDistance() {
@@ -353,6 +328,8 @@ private:
         for (int i=0; i<silo_num; i+=2) {
             if (dist_list[i] < 0) {
                 nearest_silo_id = i;
+            } else {
+                nearest_silo_id = i + 1;
             }
             #ifdef LOCAL_DEBUG
             std::cout << "Data holder #(" << i << ") " << m_silo_name_list[i] << ": " << dist_list[i] << std::endl;
@@ -386,10 +363,10 @@ private:
         for (int silo_id=0; silo_id<m_silo_num; ++silo_id) {
             std::string silo_ipaddr = m_silo_ipaddr_list[silo_id];
             std::string silo_name = m_silo_name_list[silo_id];
-            std::cout << "Query user " << m_user_name << " is connecting Data Holder #(" << std::to_string(silo_id+1) << ") " << silo_name << " on IP address " << silo_ipaddr << std::endl;
+            std::cout << "Query user " << m_user_name << " is connecting Data Holder #(" << std::to_string(silo_id) << ") " << silo_name << " on IP address " << silo_ipaddr << std::endl;
 
             std::shared_ptr<grpc::Channel> channel = grpc::CreateCustomChannel(silo_ipaddr, grpc::InsecureChannelCredentials(), args);
-            m_silo_receiver_list[silo_id] = std::make_shared<DataHolderReceiver>(channel, silo_id+1, silo_ipaddr, silo_name);
+            m_silo_receiver_list[silo_id] = std::make_shared<DataHolderReceiver>(channel, silo_id, silo_ipaddr, silo_name);
         }
     }
 
@@ -523,7 +500,7 @@ private:
     PublicKey m_public_key;
     SecretKey m_secret_key;
     RelinKeys m_relin_keys;
-    static const size_t m_poly_modulus_degree = 4096;
+    static const size_t m_poly_modulus_degree = 8192;
     static const size_t m_batching_size = 40;
 };
 
@@ -533,7 +510,7 @@ void RunService(const int n, const int dim, const std::string& silo_ip_filename,
     fed_sqlserver_ptr = std::make_unique<FedSqlServer>(silo_ip_filename, user_name);
 
     for (int i=0; i<n; ++i) {
-        fed_sqlserver_ptr->PsaAnnq(dim);
+        fed_sqlserver_ptr->ProcessANNQ(dim);
     }
 
     std::string log_info = fed_sqlserver_ptr->to_string();

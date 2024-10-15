@@ -2,9 +2,9 @@
 
 ORIGINAL_DIR=$(pwd)
 cd ../build
-silo_id=1
-port=$((50050 + ${silo_id}))
-n=500
+silo_id=0
+port=$((50051 + ${silo_id}))
+n=5
 dim=128
 name=Alice
 

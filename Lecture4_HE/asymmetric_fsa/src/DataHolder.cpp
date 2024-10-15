@@ -87,7 +87,7 @@ public:
         m_dim = dim;
         m_data_list.clear();
         std::vector<VectorDimensionType> arr(dim);
-        const int base = 10000;
+        const int base = 100;
         std::random_device rd;  // 用于获取随机数种子  
         std::default_random_engine eng(rd());  // 使用随机种子初始化引擎  
         // 创建均匀分布的整数随机数生成器，范围在 [1, 100]  
@@ -141,6 +141,7 @@ public:
         // Compute the local nearest neighbor
         m_local_nn = m_GetLocalNearestNeighbor(m_query_data);
         std::cout << "Local NN: " << m_local_nn.to_string() << std::endl;
+        std::cout << "Square distance: " << EuclideanSquareDistance(m_local_nn, m_query_data) << std::endl;
 
         double grpc_comm = request->ByteSizeLong() + response->ByteSizeLong();
         m_logger.LogAddComm(grpc_comm);
@@ -156,6 +157,7 @@ public:
                                 EncryptDistance* response) override {
 
         m_logger.SetStartTimer();
+        float comm_within_holders = 0;
 
         // Compute the encrypt distance
         EncryptDistance encrypt_distance = m_GetEncryptPerturbDistance(m_local_nn, m_query_data);
@@ -163,20 +165,21 @@ public:
         // Exchange the encrypt distance
         if (m_silo_id%2 == 1) {
             std::string error_message("Only data holder with even identifier can enable exchange");
-            PrintLine(__LINE_);
+            PrintLine(__LINE__);
             std::cerr << error_message << std::endl;
             throw std::invalid_argument(error_message);
         }
         
-        {
-            grpc::ChannelArguments args;  
-            args.SetInt(GRPC_ARG_MAX_SEND_MESSAGE_LENGTH, INT_MAX);  
-            args.SetInt(GRPC_ARG_MAX_RECEIVE_MESSAGE_LENGTH, INT_MAX); 
-            std::shared_ptr<grpc::Channel> channel = grpc::CreateCustomChannel(m_other_silo_ipaddr, grpc::InsecureChannelCredentials(), args);
-            std::unique_ptr<FedSqlService::Stub> stub(FedSqlService::NewStub(channel));
+        grpc::ChannelArguments args;  
+        args.SetInt(GRPC_ARG_MAX_SEND_MESSAGE_LENGTH, INT_MAX);  
+        args.SetInt(GRPC_ARG_MAX_RECEIVE_MESSAGE_LENGTH, INT_MAX); 
+        std::shared_ptr<grpc::Channel> channel = grpc::CreateCustomChannel(m_other_silo_ipaddr, grpc::InsecureChannelCredentials(), args);
+        std::unique_ptr<FedSqlService::Stub> stub(FedSqlService::NewStub(channel));
+        
+        EncryptDistance other_encrypt_distance;
 
+        {
             ClientContext context;
-            EncryptDistance other_encrypt_distance;
 
             // exchange the encrypt perturb distance
             Status status = stub->ExchangeEncryptPerturbDistance(&context, encrypt_distance, &other_encrypt_distance); 
@@ -186,25 +189,32 @@ public:
                 error_message = std::string("Exchange encrypt perturb distance from data silo #(") + std::to_string(m_silo_id^1) + std::string(") failed");
                 throw std::invalid_argument(error_message);
             }
-            float grpc_comm = encrypt_distance.ByteSizeLong() + other_encrypt_distance.ByteSizeLong();
+            double grpc_comm = encrypt_distance.ByteSizeLong() + other_encrypt_distance.ByteSizeLong();
             m_logger.LogAddComm(grpc_comm);
+            comm_within_holders += grpc_comm;
+        }
 
+        {
             // receive the encrypt double perturb distance from Bob
             Empty empty_request;
-            status = stub->GetEncryptDoublePerturbDistance(&context, empty_request, &encrypt_distance); 
+            ClientContext context;
+            Status status = stub->GetEncryptDoublePerturbDistance(&context, empty_request, &encrypt_distance); 
             if (!status.ok()) {
                 std::cerr << "RPC failed: " << status.error_message() << std::endl;
                 std::string error_message;
                 error_message = std::string("Get encrypt double perturb distance from data silo #(") + std::to_string(m_silo_id^1) + std::string(") failed");
                 throw std::invalid_argument(error_message);
             }
-            grpc_comm = empty_request.ByteSizeLong() + encrypt_distance.ByteSizeLong();
+            double grpc_comm = empty_request.ByteSizeLong() + encrypt_distance.ByteSizeLong();
             m_logger.LogAddComm(grpc_comm);
-
-            other_encrypt_distance = m_DoublePerturbDistance(other_encrypt_distance);
-            encrypt_distance = m_SubtractDoublePerturbDistance(encrypt_distancem other_encrypt_distance);
-            response->set_edist(encrypt_distance.edist());
+            comm_within_holders += grpc_comm;
         }
+
+        // Double perturb Bob's encrypt distance with Alice's random number
+        other_encrypt_distance = m_DoublePerturbDistance(other_encrypt_distance);
+        encrypt_distance = m_SubtractDoublePerturbDistance(encrypt_distance, other_encrypt_distance);
+        response->set_edist(encrypt_distance.edist());
+        response->set_comm(comm_within_holders);
 
         double grpc_comm = request->ByteSizeLong() + response->ByteSizeLong();
         m_logger.LogAddComm(grpc_comm);
@@ -238,7 +248,7 @@ public:
                                             EncryptDistance* response) override {
 
         m_logger.SetStartTimer();
-    
+
         EncryptDistance encrypt_distance = m_DoublePerturbDistance(m_other_encrypt_distance);
         response->set_edist(encrypt_distance.edist());
 
@@ -308,9 +318,82 @@ private:
         return m_data_list[min_id];
     }
 
+    EncryptDistance m_GetEncryptPerturbDistance(const VectorDataType& vector_data, const VectorDataType& query_data) {
+        VectorDimensionType dist = EuclideanSquareDistance(vector_data, query_data);
+
+        SEALContext context(m_parms);
+        Encryptor encryptor(context, m_public_key);
+        Evaluator evaluator(context);
+        BatchEncoder batch_encoder(context);
+        size_t slot_count = batch_encoder.slot_count();
+
+        #ifdef LOCAL_DEBUG
+        Decryptor decryptor(context, m_secret_key);
+        std::vector<int64_t> dist_matrix_tmp;
+        Plaintext dist_decrypted; 
+        size_t row_size = slot_count / 2;
+        #endif
+
+        std::vector<int64_t> dist_matrix(slot_count, 0);
+        dist_matrix[0] = dist;
+        Plaintext dist_plain;
+        batch_encoder.encode(dist_matrix, dist_plain);
+        Ciphertext dist_encrypted;
+        encryptor.encrypt(dist_plain, dist_encrypted);
+
+        #ifdef LOCAL_DEBUG
+        decryptor.decrypt(dist_encrypted, dist_decrypted);
+        batch_encoder.decode(dist_decrypted, dist_matrix_tmp);
+        PrintMatrix(dist_matrix_tmp, row_size);
+        #endif
+
+        m_random_value = m_SampleRandomValue();
+        std::vector<int64_t> perturb_matrix(slot_count, 0);
+        perturb_matrix[0] = m_random_value;
+        Plaintext perturb_plain;
+        batch_encoder.encode(perturb_matrix, perturb_plain);
+
+        #ifdef LOCAL_DEBUG
+        batch_encoder.decode(perturb_plain, dist_matrix_tmp);
+        PrintMatrix(dist_matrix_tmp, row_size);
+        #endif
+
+        Ciphertext perturb_dist_encrypted;
+        evaluator.multiply_plain(dist_encrypted, perturb_plain, perturb_dist_encrypted);
+        #ifdef LOCAL_DEBUG
+        decryptor.decrypt(perturb_dist_encrypted, dist_decrypted);
+        batch_encoder.decode(dist_decrypted, dist_matrix_tmp);
+        PrintMatrix(dist_matrix_tmp, row_size);
+        #endif
+
+        evaluator.add_plain_inplace(perturb_dist_encrypted, perturb_plain);
+        #ifdef LOCAL_DEBUG
+        decryptor.decrypt(perturb_dist_encrypted, dist_decrypted);
+        batch_encoder.decode(dist_decrypted, dist_matrix_tmp);
+        PrintMatrix(dist_matrix_tmp, row_size);
+        #endif
+
+        std::stringstream dist_encrypted_sstream;
+        perturb_dist_encrypted.save(dist_encrypted_sstream);
+        EncryptDistance encrypt_dist;
+        encrypt_dist.set_edist(dist_encrypted_sstream.str());
+
+        #ifdef LOCAL_DEBUG
+        decryptor.decrypt(perturb_dist_encrypted, dist_decrypted);
+        batch_encoder.decode(dist_decrypted, dist_matrix_tmp);
+        std::cout << "perturb distance is " << dist_matrix_tmp[0];
+        std::cout << ", random value is " << m_random_value;
+        decryptor.decrypt(dist_encrypted, dist_decrypted);
+        batch_encoder.decode(dist_decrypted, dist_matrix_tmp);
+        std::cout << ", raw distance is " << dist_matrix_tmp[0] << std::endl;
+        #endif
+
+        return encrypt_dist;
+    }
+
     EncryptDistance m_DoublePerturbDistance(const EncryptDistance& encrypt_distance) {
-        SEALContext context(params);
-        Decryptor decryptor(context, secret_key);
+        SEALContext context(m_parms);
+        Encryptor encryptor(context, m_public_key);
         Evaluator evaluator(context);
         BatchEncoder batch_encoder(context);
         size_t slot_count = batch_encoder.slot_count();
@@ -338,8 +421,8 @@ private:
     }
 
     EncryptDistance m_SubtractDoublePerturbDistance(const EncryptDistance& a_encrypt_distance, const EncryptDistance& b_encrypt_distance) {
-        SEALContext context(params);
-        Decryptor decryptor(context, secret_key);
+        SEALContext context(m_parms);
+        Encryptor encryptor(context, m_public_key);
         Evaluator evaluator(context);
         BatchEncoder batch_encoder(context);
         size_t slot_count = batch_encoder.slot_count();
@@ -413,6 +496,10 @@ private:
         validate those parameters. The parameters chosen here are valid.
         */
         std::cout << "Parameter validation (success): " << context.parameter_error_message() << std::endl;
+
+        BatchEncoder batch_encoder(context);
+        size_t slot_count = batch_encoder.slot_count();
+        std::cout << "Slot count: " << slot_count << std::endl;
     }
 
     /*
@@ -495,8 +582,8 @@ private:
     EncryptionParameters m_parms;
     PublicKey m_public_key;
     SecretKey m_secret_key;
-    static const size_t m_poly_modulus_degree = 4096;
-    static const size_t m_batching_size = 40;   
+    static const size_t m_poly_modulus_degree = 8192;
+    static const size_t m_batching_size = 40;
 };
   
 std::unique_ptr<FedSqlImpl> fed_db_ptr = nullptr;

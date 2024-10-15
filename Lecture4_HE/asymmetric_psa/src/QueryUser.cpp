@@ -195,7 +195,7 @@ public:
 
         // Step 1: Generator query object
         std::vector<VectorDimensionType> arr(dim);
-        const int base = 10000;
+        const int base = 100;
         std::random_device rd;  // 用于获取随机数种子  
         std::default_random_engine eng(rd());  // 使用随机种子初始化引擎  
         // 创建均匀分布的整数随机数生成器，范围在 [1, 100]  
@@ -458,8 +458,8 @@ private:
     PublicKey m_public_key;
     SecretKey m_secret_key;
     RelinKeys m_relin_keys;
-    static const size_t m_poly_modulus_degree = 4096;
-    static const size_t m_batching_size = 40;
+    static const size_t m_poly_modulus_degree = 8192;
+    static const size_t m_batching_size = 40; 
 };
 
 std::unique_ptr<FedSqlServer> fed_sqlserver_ptr = nullptr;
