@@ -18,6 +18,9 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <boost/program_options.hpp>
+namespace bpo = boost::program_options;
+
 #include <grpc/grpc.h>
 #include <grpcpp/grpcpp.h>
 
@@ -27,18 +30,9 @@
 #include "utils/DataType.hpp"
 #include "FedSql.grpc.pb.h"
 
-using grpc::Server;
-using grpc::ServerBuilder;
-using grpc::ServerContext;
-using grpc::ServerReader;
-using grpc::ServerReaderWriter;
-using grpc::ServerWriter;
-using grpc::Status;
 using grpc::Channel;
 using grpc::ClientContext;
-using grpc::ClientReader;
-using grpc::ClientReaderWriter;
-using grpc::ClientWriter;
+using grpc::Status;
 using google::protobuf::Empty;
 using FedSql::FedSqlService;
 using FedSql::QueryObject;
@@ -81,7 +75,7 @@ public:
         if (!status.ok()) {
             std::cerr << "RPC failed: " << status.error_message() << std::endl;
             std::string error_message;
-            error_message = std::string("Request Knn candidates from data silo #(") + std::to_string(m_silo_id) + std::string(") failed");
+            error_message = std::string("Get encrypt distance from data silo #(") + std::to_string(m_silo_id) + std::string(") failed");
             throw std::invalid_argument(error_message);
         }
 
@@ -191,6 +185,7 @@ public:
 
         m_CreateSiloReceiver();
         m_InitSealParams();
+        m_logger.Init();
     }
 
     void ProcessANNQ(const int dim=128) {
@@ -201,10 +196,15 @@ public:
         // Step 1: Generator query object
         std::vector<VectorDimensionType> arr(dim);
         const int base = 10000;
+        std::random_device rd;  // 用于获取随机数种子  
+        std::default_random_engine eng(rd());  // 使用随机种子初始化引擎  
+        // 创建均匀分布的整数随机数生成器，范围在 [1, 100]  
+        std::uniform_int_distribution<> distribution(1, base); 
         for (int j=0; j<dim; ++j) {
-            arr[j] = rand() % base;
+            arr[j] = distribution(eng);
         }
         VectorDataType query_data(dim, m_query_num++, arr);
+        std::cout << "Query object " << query_data.to_string() << std::endl;
 
         // Step 2: Get encrypt distance from all data holders
         m_GetEncryptDistance(query_data);
@@ -288,6 +288,7 @@ private:
             if (dist_list[i] < dist_list[nearest_silo_id]) {
                 nearest_silo_id = i;
             }
+            std::cout << "Data holder #(" << i << ") " << m_silo_name_list[i] << ": " << dist_list[i] << std::endl;
         }
         return nearest_silo_id;
     }
@@ -437,8 +438,7 @@ private:
     void m_InitBenchLogger() {
         for (int silo_id=0; silo_id<m_silo_num; ++silo_id) {
             m_silo_receiver_list[silo_id]->InitBenchLogger();
-        }    
-        m_logger.Init();    
+        }
     }
 
     std::vector<std::shared_ptr<DataHolderReceiver>> m_silo_receiver_list;
@@ -461,8 +461,12 @@ private:
 
 std::unique_ptr<FedSqlServer> fed_sqlserver_ptr = nullptr;
 
-void RunService(const std::string& silo_ip_filename, const std::string& user_name) {
+void RunService(const int n, const int dim, const std::string& silo_ip_filename, const std::string& user_name) {
     fed_sqlserver_ptr = std::make_unique<FedSqlServer>(silo_ip_filename, user_name);
+
+    for (int i=0; i<n; ++i) {
+        fed_sqlserver_ptr->ProcessANNQ(dim);
+    }
 
     std::string log_info = fed_sqlserver_ptr->to_string();
     std::cout << log_info;
@@ -487,15 +491,60 @@ void ResetSignalHandler() {
 }
 
 int main(int argc, char** argv) {
+    int n, dim;
     std::string silo_ip_filename;
     std::string user_name("Tom");
 
-    if (argc > 1) {
-        silo_ip_filename = std::string(argv[1]);
+    try { 
+        bpo::options_description option_description("Required options");
+        option_description.add_options()
+            ("help", "produce help message")
+            ("ip-file", bpo::value<std::string>(), "Data holder's IP address")
+            ("name", bpo::value<std::string>(), "Query user's name")
+            ("n", bpo::value<int>(&n)->default_value(1), "Number of nearest neighbor query")
+            ("dim", bpo::value<int>(&dim)->default_value(128), "Dimension of query obeject")
+        ;
+
+        bpo::variables_map variable_map;
+        bpo::store(bpo::parse_command_line(argc, argv, option_description), variable_map);
+        bpo::notify(variable_map);    
+
+        if (variable_map.count("help")) {
+            std::cout << option_description << std::endl;
+            return 0;
+        }
+
+        bool options_all_set = true;
+
+        if (variable_map.count("ip-file")) {
+            silo_ip_filename = variable_map["ip-file"].as<std::string>();
+            std::cout << "Data holder's IP address file name was set to " << silo_ip_filename << "\n";
+        } else {
+            std::cout << "Data holder's IP address file name was not set" << "\n";
+            options_all_set = false;
+        }
+
+        if (variable_map.count("name")) {
+            user_name = variable_map["name"].as<std::string>();
+            std::cout << "Query user's name was set to " << user_name << "\n";
+        } else {
+            std::cout << "Query user's name was not set" << "\n";
+            options_all_set = false;
+        }
+
+        if (false == options_all_set) {
+            throw std::invalid_argument("Some options were not properly set");
+            std::cout.flush();
+            std::exit(EXIT_FAILURE);
+        }
+
+    } catch (std::exception& e) {  
+        std::cerr << "Error: " << e.what() << "\n";  
+        std::exit(EXIT_FAILURE);
     }
 
     ResetSignalHandler();
-    RunService(silo_ip_filename, user_name);
+    RunService(n, dim, silo_ip_filename, user_name);
 
     return 0;
 }

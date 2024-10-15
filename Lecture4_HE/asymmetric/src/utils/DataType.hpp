@@ -20,6 +20,8 @@ struct VectorDataType {
     VidType vid;  
     std::vector<VectorDimensionType> data;  
 
+    VectorDataType() {}
+
     VectorDataType(size_t dim, VidType _vid=0): vid(_vid) {
         data.reserve(dim);
         data.resize(dim);

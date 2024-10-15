@@ -28,9 +28,19 @@ namespace bpo = boost::program_options;
 #include "utils/DataType.hpp"
 #include "FedSql.grpc.pb.h"
 
+
+using grpc::Server;
+using grpc::ServerBuilder;
+using grpc::ServerContext;
+using grpc::ServerReader;
+using grpc::ServerReaderWriter;
+using grpc::ServerWriter;
+using grpc::Status;
 using grpc::Channel;
 using grpc::ClientContext;
-using grpc::Status;
+using grpc::ClientReader;
+using grpc::ClientReaderWriter;
+using grpc::ClientWriter;
 using google::protobuf::Empty;
 using FedSql::FedSqlService;
 using FedSql::QueryObject;
@@ -78,14 +88,22 @@ public:
         m_data_list.clear();
         std::vector<VectorDimensionType> arr(dim);
         const int base = 10000;
+        std::random_device rd;  // 用于获取随机数种子  
+        std::default_random_engine eng(rd());  // 使用随机种子初始化引擎  
+        // 创建均匀分布的整数随机数生成器，范围在 [1, 100]  
+        std::uniform_int_distribution<> distribution(1, base);  
 
         for (int data_id=0; data_id<n; ++data_id) {
             for (int j=0; j<dim; ++j) {
-                arr[j] = rand() % base;
+                arr[j] = distribution(eng);
             }
             VectorDataType vector_data(dim, data_id, arr);
             m_data_list.emplace_back(vector_data);
+            std::cout << vector_data.to_string() << std::endl;
         }
+
+        m_local_nn.data.reserve(m_dim);
+        m_local_nn.data.resize(m_dim);
     }
 
     Status GetEncryptDistance(ServerContext* context,
@@ -96,7 +114,7 @@ public:
 
         // Obtain the query object
         const int dim = request->data_size();
-        if (dim <= m_dim) {
+        if (dim != m_dim) {
             throw std::invalid_argument("Dimension of query object should be equal to the dimension of data object");
         }
         VectorDataType query_data(dim, 0);
@@ -107,9 +125,15 @@ public:
         // Obtain the public key
         std::string pk_str = request->pk();
         m_LoadPublicKey(pk_str);
+
+        #ifdef LOCAL_DEBUG
+        std::string sk_str = request->sk();
+        m_LoadSecretKey(sk_str);
+        #endif
         
         // Compute the local nearest neighbor
         m_local_nn = m_GetLocalNearestNeighbor(query_data);
+        std::cout << "Local NN: " << m_local_nn.to_string() << std::endl;
 
         // Compute the encrypt distance
         EncryptDistance encrypt_distance = m_GetEncryptDistance(m_local_nn, query_data);
@@ -152,6 +176,15 @@ public:
         return Status::OK;
     }
 
+    std::string to_string() const {
+        std::stringstream ss;
+
+        ss << "-------------- Data Holder #(" << m_silo_id << ") " << m_silo_name << " Log --------------\n";
+        ss << m_logger.to_string();
+
+        return ss.str();
+    }
+
 private:
     VectorDataType m_GetLocalNearestNeighbor(const VectorDataType& query_data) {
         VectorDimensionType min_dist = std::numeric_limits<VectorDimensionType>::max();
@@ -178,7 +211,7 @@ private:
         EncryptDistance encrypt_dist;
 
         SEALContext context(m_parms);
-        Encryptor encryptor(context, public_key);
+        Encryptor encryptor(context, m_public_key);
         BatchEncoder batch_encoder(context);
 
         size_t slot_count = batch_encoder.slot_count();
@@ -196,8 +229,6 @@ private:
         encrypt_dist.set_edist(dist_encrypted_sstream.str());
 
         #ifdef LOCAL_DEBUG
-        std::string sk_str = request->sk();
-        m_LoadSecretKey(sk_str);
         Decryptor decryptor(context, m_secret_key);
 
         Plaintext dist_decrypted; 
@@ -252,7 +283,7 @@ private:
         m_parms.set_plain_modulus(PlainModulus::Batching(m_poly_modulus_degree, m_batching_size));
 
         SEALContext context(m_parms);
-        print_line(__LINE__);
+        PrintLine(__LINE__);
         std::cout << "Set encryption parameters and print" << std::endl;
         m_print_parameters(context);
 
@@ -335,14 +366,15 @@ private:
     static const size_t m_batching_size = 60;   
 };
   
-std::unique_ptr<FedSqlImpl> fed_vectordb_ptr = nullptr;
+std::unique_ptr<FedSqlImpl> fed_db_ptr = nullptr;
 
-void RunSilo(const int silo_id, const std::string& silo_ipaddr, const std::string& silo_name) {
-    fed_vectordb_ptr = std::make_unique<FedSqlImpl>(silo_id, silo_ipaddr, silo_name);
+void RunSilo(const int n, const int dim, const int silo_id, const std::string& silo_ipaddr, const std::string& silo_name) {
+    fed_db_ptr = std::make_unique<FedSqlImpl>(silo_id, silo_ipaddr, silo_name);
+    fed_db_ptr->InitDataHolder(n, dim);
 
     ServerBuilder builder;
     builder.AddListeningPort(silo_ipaddr, grpc::InsecureServerCredentials());
-    builder.RegisterService(fed_vectordb_ptr.get());
+    builder.RegisterService(fed_db_ptr.get());
     builder.SetMaxSendMessageSize(INT_MAX);
     builder.SetMaxReceiveMessageSize(INT_MAX);
     std::unique_ptr<Server> server(builder.BuildAndStart());
@@ -350,15 +382,15 @@ void RunSilo(const int silo_id, const std::string& silo_ipaddr, const std::strin
     
     server->Wait();
 
-    std::string log_info = fed_vectordb_ptr->to_string();
+    std::string log_info = fed_db_ptr->to_string();
     std::cout << log_info;
     std::cout.flush();
 }
 
 // Ensure the log file is output, when the program is terminated.
 void SignalHandler(int signal) {
-    if (fed_vectordb_ptr != nullptr) {
-        std::string log_info = fed_vectordb_ptr->to_string();
+    if (fed_db_ptr != nullptr) {
+        std::string log_info = fed_db_ptr->to_string();
         std::cout << log_info;
         std::cout.flush();
     }
@@ -373,7 +405,8 @@ void ResetSignalHandler() {
 }
 
 int main(int argc, char** argv) {
-    // Expect the following args: --ip=0.0.0.0 --port=50051 --data-path=../../data/data_01.txt --silo_id=1
+    // Expect the following args: --ip=0.0.0.0 --port=50051 --name=Alice --id=1 --n=500 --dim=128
+    int n, dim;
     int silo_port, silo_id;
     std::string silo_ip, silo_ipaddr, silo_name;
     
@@ -385,6 +418,8 @@ int main(int argc, char** argv) {
             ("ip", bpo::value<std::string>(), "Data holder's IP address")
             ("port", bpo::value<int>(&silo_port), "Data holder's IP port")
             ("name", bpo::value<std::string>(), "Data holder's name")
+            ("n", bpo::value<int>(&n)->default_value(500), "Data holder's data size")
+            ("dim", bpo::value<int>(&dim)->default_value(128), "Data holder's dimension size")
         ;
 
         bpo::variables_map variable_map;
@@ -416,9 +451,9 @@ int main(int argc, char** argv) {
             options_all_set = false;
         }
 
-        if (variable_map.count("silo_name")) {
-            silo_name = variable_map["silo_name"].as<std::string>();
-            std::cout << "Data holder's name was set to " << data_filename << "\n";
+        if (variable_map.count("name")) {
+            silo_name = variable_map["name"].as<std::string>();
+            std::cout << "Data holder's name was set to " << silo_name << "\n";
         } else {
             std::cout << "Data holder's name was not set" << "\n";
             options_all_set = false;
@@ -439,7 +474,7 @@ int main(int argc, char** argv) {
 
     ResetSignalHandler();
 
-    RunSilo(silo_id, silo_ipaddr, silo_name);
+    RunSilo(n, dim, silo_id, silo_ipaddr, silo_name);
 
     return 0;
 }

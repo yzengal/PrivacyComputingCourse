@@ -59,6 +59,7 @@ add_executable(holder src/DataHolder.cpp src/utils/DataType.hpp src/utils/BenchL
 target_link_libraries(user PRIVATE
     pthread 
     SEAL::seal
+    Boost::program_options
     FedSql_grpc_proto
     ${_REFLECTION}
     ${_GRPC_GRPCPP}
