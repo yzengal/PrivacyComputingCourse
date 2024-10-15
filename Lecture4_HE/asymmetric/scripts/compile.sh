@@ -3,7 +3,7 @@ ORIGINAL_DIR=$(pwd)
 
 mkdir -p ../build
 cd ../build
-cmake ..
+cmake .. -DLOCAL_DEBUG=OFF
 make -j 4
 
 cd "$ORIGINAL_DIR"

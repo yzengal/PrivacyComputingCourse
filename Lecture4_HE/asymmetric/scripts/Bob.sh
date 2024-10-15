@@ -4,8 +4,8 @@ ORIGINAL_DIR=$(pwd)
 cd ../build
 holder_id=2
 port=$((50050 + ${holder_id}))
-n=10
-dim=4
+n=500
+dim=128
 name=Bob
 
 ./holder --id=$holder_id --ip=localhost --port=$port --name=$name --n=$n --dim=$dim

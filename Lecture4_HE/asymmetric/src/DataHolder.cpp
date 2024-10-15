@@ -48,7 +48,7 @@ using FedSql::EncryptDistance;
 using FedSql::QueryAnswer;
 
 
-#define LOCAL_DEBUG
+// #define LOCAL_DEBUG
 
 
 class FedSqlImpl final : public FedSqlService::Service {
@@ -99,7 +99,10 @@ public:
             }
             VectorDataType vector_data(dim, data_id, arr);
             m_data_list.emplace_back(vector_data);
-            std::cout << vector_data.to_string() << std::endl;
+            if (data_id < 10)
+                std::cout << "Data " <<vector_data.to_string() << std::endl;
+            else if (data_id == 10)
+                std::cout << "Data ......" << std::endl;
         }
 
         m_local_nn.data.reserve(m_dim);
@@ -238,6 +241,7 @@ private:
         batch_encoder.decode(dist_decrypted, dist_matrix_tmp);
         size_t row_size = slot_count / 2;
         PrintMatrix(dist_matrix_tmp, row_size);
+        // std::cout << "Plaintext matrix row size: " << row_size << std::endl;
         std::cout << "encrypted distance is " << dist_matrix_tmp[0] << std::endl;
         #endif
 
@@ -361,9 +365,8 @@ private:
     EncryptionParameters m_parms;
     PublicKey m_public_key;
     SecretKey m_secret_key;
-    static const size_t m_poly_function_prime = 97;
-    static const size_t m_poly_modulus_degree = 16384;
-    static const size_t m_batching_size = 60;   
+    static const size_t m_poly_modulus_degree = 4096;
+    static const size_t m_batching_size = 40;   
 };
   
 std::unique_ptr<FedSqlImpl> fed_db_ptr = nullptr;

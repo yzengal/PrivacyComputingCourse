@@ -8,6 +8,13 @@ project(ANNQ VERSION 1.0 DESCRIPTION "An example of Asymmetric Nearest Neighbor 
 set(CMAKE_CXX_STANDARD 17)  
 set(CMAKE_CXX_STANDARD_REQUIRED ON)  
 
+set(LOCAL_DEBUG OFF CACHE BOOL "Enable LOCAL_DEBUG definition") 
+If (LOCAL_DEBUG)
+    message(STATUS "Enable #define LOCAL_DEBUG compile option")  
+else()
+    message(STATUS "Disable #define LOCAL_DEBUG compile option")  
+endif()
+
 include(./common.cmake)
 
 find_package(SEAL 4.1 REQUIRED)
@@ -53,8 +60,10 @@ target_link_libraries(FedSql_grpc_proto
 
 # 添加源文件  
 add_executable(user src/QueryUser.cpp src/utils/DataType.hpp src/utils/BenchLogger.hpp ${FedSql_proto_srcs} ${FedSql_grpc_srcs})  
-add_executable(holder src/DataHolder.cpp src/utils/DataType.hpp src/utils/BenchLogger.hpp ${FedSql_proto_srcs} ${FedSql_grpc_srcs})  
-  
+if(LOCAL_DEBUG)
+    target_compile_definitions(user PRIVATE LOCAL_DEBUG)
+endif()
+
 # 链接第三方库
 target_link_libraries(user PRIVATE
     pthread 
@@ -64,6 +73,11 @@ target_link_libraries(user PRIVATE
     ${_REFLECTION}
     ${_GRPC_GRPCPP}
     ${_PROTOBUF_LIBPROTOBUF})  
+
+add_executable(holder src/DataHolder.cpp src/utils/DataType.hpp src/utils/BenchLogger.hpp ${FedSql_proto_srcs} ${FedSql_grpc_srcs})  
+if(LOCAL_DEBUG)
+    target_compile_definitions(holder PRIVATE LOCAL_DEBUG)
+endif()
 
 target_link_libraries(holder PRIVATE
     pthread

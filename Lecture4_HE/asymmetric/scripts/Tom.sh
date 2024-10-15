@@ -4,7 +4,7 @@ ORIGINAL_DIR=$(pwd)
 cd ../build
 name=Tom
 n=10
-dim=4
+dim=128
 
 ./user --ip-file=../configuration/ip.txt --name=$name --n=$n --dim=$dim
 

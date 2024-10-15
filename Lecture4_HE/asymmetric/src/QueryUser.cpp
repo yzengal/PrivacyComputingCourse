@@ -57,7 +57,7 @@ using Plaintext = seal::Plaintext;
 using Ciphertext = seal::Ciphertext;
 
 
-#define LOCAL_DEBUG
+// #define LOCAL_DEBUG
 
 
 class DataHolderReceiver {
@@ -204,6 +204,7 @@ public:
             arr[j] = distribution(eng);
         }
         VectorDataType query_data(dim, m_query_num++, arr);
+        std::cout << std::endl;
         std::cout << "Query object " << query_data.to_string() << std::endl;
 
         // Step 2: Get encrypt distance from all data holders
@@ -235,6 +236,7 @@ public:
     std::string to_string() const {
         std::stringstream ss;
 
+        ss << "\n";
         ss << "-------------- Service Log --------------\n";
         ss << m_logger.to_string();
 
@@ -288,7 +290,9 @@ private:
             if (dist_list[i] < dist_list[nearest_silo_id]) {
                 nearest_silo_id = i;
             }
+            #ifdef LOCAL_DEBUG
             std::cout << "Data holder #(" << i << ") " << m_silo_name_list[i] << ": " << dist_list[i] << std::endl;
+            #endif
         }
         return nearest_silo_id;
     }
@@ -454,9 +458,8 @@ private:
     PublicKey m_public_key;
     SecretKey m_secret_key;
     RelinKeys m_relin_keys;
-    static const size_t m_poly_function_prime = 97;
-    static const size_t m_poly_modulus_degree = 16384;
-    static const size_t m_batching_size = 60;
+    static const size_t m_poly_modulus_degree = 4096;
+    static const size_t m_batching_size = 40;
 };
 
 std::unique_ptr<FedSqlServer> fed_sqlserver_ptr = nullptr;
