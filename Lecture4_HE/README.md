@@ -106,31 +106,33 @@ $$E_{pk,sk}^{-1}(E_{pk}[ab \cdot dist(p^{\ast},q)]) = ab \cdot (dist(o^{\ast},q)
 
 1. Update the environment variables related to gRPC by the following command:
 ```
-cd Lecture4_HE/asymmetric
+cd Lecture4_HE/asymmetric_psa
 source environment.sh
 ```
 Notice that, if your gRPC is not installed in ``/opt/gRPC``, you need to revise ``environment.sh`` by replacing with your install path of gRPC.
 
 2. Execute the following commands to compile **client** and **server**:
 ```
-mkdir build
-cd build
-cmake ..
-make
+cd scripts
+chmod +x *.sh
+./compile.sh
 ```
 
-3. Execute the following command in one terminal to enable the **query user** Tom:
+3. Execute the following command in two terminals to enable the data holders **Alice** and **Bob**:
 ```
-./server Tom
+./Alice.sh
+```
+```
+./Bob.sh
 ```
 
-4. Execute the following commands in other two terminals to enable the **data holder** Alice and Tom:
+4. Execute the following commands in another terminal to enable the query user **Tom**:
 ```
-./client Alice
+./Tom.sh
 ```
-```
-./client Bob
-```
+
+5. To run the FSA algorithm, you only need to change the directory from ``asymmetric_psa`` to ``asymmetric_fsa`` in the above commands.
+
 ### Example 2: Symmetric Nearest Neighbor Query
 
 #### 2.1 Problem Definition
@@ -267,31 +269,3 @@ The first two terms can be first computed in plaintext and then encrypted with t
 
 In the OA algorithm, Tom can only know the peturbed distance (with an unknown random number $a$ or $b$). Then, he cannot derive anything else from Alice and Tom about their data objects.
 
-#### 2.4 Experiment
-
-1. Update the environment variables related to gRPC by the following command:
-```
-cd Lecture4_HE/symmetric
-source environment.sh
-```
-Notice that, if your gRPC is not installed in ``/opt/gRPC``, you need to revise ``environment.sh`` by replacing with your install path of gRPC.
-
-2. Execute the following commands to compile **client** and **server**:
-```
-mkdir build
-cd build
-cmake ..
-make
-```
-
-3. Execute the following command in one terminal to enable the **query user** Tom:
-```
-./server Tom
-```
-
-4. Execute the following commands in other two terminals to enable the **data holder** Alice and Tom:
-```
-./client Alice
-```
-```
-./client Bob
