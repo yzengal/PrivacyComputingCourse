@@ -219,20 +219,20 @@ $$E_{pk,sk}^{-1}(E_{pk}[a \cdot (dist(o_i,q) - dist(o_j,q))]) = a \cdot (dist(o_
 The square euclidean distance is defined as
 $$dist(o, q) = \sum_{i=1}^{d}{(x_i-z_i)^2}$$
 Equivalently, it also equals
-$$dist(o, q) = \sum_{i=1}^{d}{x_i^2} + \sum_{i=1}^{d}{z_i^2} - 2\sum_{i=1}^{d}{x_iz_i}$$
+$$dist(o, q) = \sum_{i=1}^{d}{{x_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{x_iz_i}$$
 
 Therefore, the difference between the square distance $dist(o_i, p)$ and the square distance $dist(o_j, q)$ is  
 $$
 \begin{aligned}
-dist(o_i, q) - dist(o_j, q) &= \Big(\sum_{i=1}^{d}{x_i^2} + \sum_{i=1}^{d}{z_i^2} - 2\sum_{i=1}^{d}{x_iz_i} \Big)  \\
-&\; - \Big(\sum_{i=1}^{d}{y_i^2} + \sum_{i=1}^{d}{z_i^2} - 2\sum_{i=1}^{d}{y_iz_i} \Big) \\
-&= \sum_{i=1}^{d}{x_i^2} - \sum_{i=1}^{d}{y_i^2} - 2\sum_{i=1}^{d}{z_i(x_i-y_i)}
+dist(o_i, q) - dist(o_j, q) &= \Big(\sum_{i=1}^{d}{{x_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{x_i z_i} \Big)  \\
+&\; - \Big(\sum_{i=1}^{d}{{y_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{y_i z_i} \Big) \\
+&= \sum_{i=1}^{d}{{x_i}^2} - \sum_{i=1}^{d}{{y_i}^2} - 2\sum_{i=1}^{d}{z_i (x_i-y_i)}
 \end{aligned}
 $$
 where $o_i = \{x_1, x_2, \cdots, x_d\}$, $o_j = \{y_1, y_2, \cdots, y_d\}$, and $q = \{z_1, z_2, \cdots, z_d\}$.
 
 By multiplying 0.5 in both left-hand side and right-hand side of the equation, we have 
-$$ 0.5(dist(o_i, q) - dist(o_j, q)) = 0.5\sum_{i=1}^{d}{x_i^2} - 0.5\sum_{i=1}^{d}{y_i^2} - \sum_{i=1}^{d}{z_i(x_i-y_i)} $$
+$$ 0.5(dist(o_i, q) - dist(o_j, q)) = 0.5\sum_{i=1}^{d}{{x_i}^2} - 0.5\sum_{i=1}^{d}{{y_i}^2} - \sum_{i=1}^{d}{z_i (x_i-y_i)} $$
 The first two terms can be first computed in plaintext and then encrypted with the public key. The last term can be computed by homomorphic encryption in encrypted data form. By using this way, we can save many secure computations.
 
 ##### 2.3.3 Analysis
