@@ -28,14 +28,17 @@ Given a query object, the **nearest neighbor query** aims to retrieve the neares
 Intuitively, the **asymmetric nearest neighbor query** aims to obtain the nearest data object to the given query object from distributed data that are hold by different data holders. 
 
 In this problem, a data object $o$ is defined as a multi-dimensional vector $\{x_1, x_2, \cdots, x_d\}$ with $d$ dimensions. Given two data objects $o = \{x_1, x_2, \cdots, x_d\}$ and $p = \{y_1, y_2, \cdots, y_d\}$, the euclidean distance is used to model their distance (i.e., similariy):  
+
 $$dist(o, p) = \sqrt{\sum_{i=1}^{d}{(x_i-y_i)^2}}$$
 
 Based on the above concepts, the formal problem definition of **Asymmetric Nearest Neighbor Query** (**ANNQ** as short) is given as follows (we assume that there're only two data holders for simplicity).
 We are given **two** data holders (i.e., Alice and Bob) and **one** query user (i.e., Tom). Among these participants, Alice holds a set $X$ of data objects, 
 and Bob holds a set $Y$ of data objects, where $X = \{o_1, o_2, \cdots, o_n\}$ and $Y = \{p_1, p_2, \cdots, p_n\}$.
 The query user wants to find the nearest neighbor $NN$ in $X \cup Y$ to the query object $q$, where the set $X$ and $Y$ are assumed to be disjoint, i.e.,  
+
 $$\forall o \in X, dist(NN, q) \le dist(o, q)$$
 $$\forall p \in Y, dist(NN, q) \le dist(p, q)$$
+
 Moreover, there are additional security requirements:  
 + For query user, Tom, the only thing he knows from Alice and Bob is $NN$;
 + For data holders, Alice and Bob, they can only know their own dataset;
@@ -57,9 +60,10 @@ To solve the **ANNQ** problem, we propose a secure and efficient algorithm as fo
     + Distance difference encryption: both Alice and Bob can encrypt their nearest distance to the query object $q$: $E_{pk}[dist(o^{\ast},q)]$ and $E_{pk}[dist(p^{\ast},q)]$. After that, the encrypted distances will undergo subtraction (e.g., by Alice who receives $E_{pk}[dist(p^{\ast},q)]$ from Bob), and the (encrypted) result will be sent to the query user Tom.
 
     + Distance difference decryption: now, Tom receives the encrypted result and decrypt it with his secrypt key (the decrypted value is denoted as $\Delta$).
-    $$E_{pk,sk}^{-1}(E_{pk}[dist(o^{\ast},q)] - E_{pk}[dist(p^{\ast},q)]) = dist(o^{\ast},q) - dist(p^{\ast},q)$$
 
     + Request query answer: if $\Delta = dist(o^{\ast},q) - dist(p^{\ast},q) < 0$, the query user (Tom) will seek the nearest neighbor $o^{\ast}$ from Alice. Otherwise, he will seek the nearest neighbor $p^{\ast}$ from Bob.
+  
+$$E_{pk,sk}^{-1}(E_{pk}[dist(o^{\ast},q)] - E_{pk}[dist(p^{\ast},q)]) = dist(o^{\ast},q) - dist(p^{\ast},q)$$
 
 **Analysis**: in the PSA algorithm, the last step inadvertently discloses additional information about $dist(p^{\ast},q)$ from Bob to the query user Tom, when $o^{\ast}$ from Alice is the nearest neighbor, and vice versa.
 
@@ -72,21 +76,26 @@ In the FSA algorithm, we aim to prevent additional information leakage of the PS
 + Perturbed distance computation: for either Alice or Bob, he/she generates a positive, private, and random number ($a$ for Alice and $b$ for Bob). 
 He/She will always keep the random number as a secret.
 Then, he can peturb the distance and encrypt as follows:
+
 $$\widetilde{dist}(o^{\ast},q) = a \cdot dist(o^{\ast},q) + a$$
 $$\widetilde{dist}(p^{\ast},q) = b \cdot dist(p^{\ast},q) + b$$
+
 Here, $\widetilde{dist}$ is used to denote the peturbed (plaintext) distance.
 
 + Exchange encrypted perturbed distance: Alice and Bob encrypt their peturbed distances $E_{pk}[\widetilde{dist}(o^{\ast},q)]$ and $E_{pk}[\widetilde{dist}(p^{\ast},q)]$. Then, they will exchange the encrypted data through network.
 
 + Double perturbed the encrypted distance: after receiving the encrypted data, Alice and Bob further peturb the encrypted data with their own secret number $a$ and $b$:
+
 $$a \cdot E_{pk}[\widetilde{dist}(p^{\ast},q)] = E_{pk}[ab \cdot dist(p^{\ast},q) + ab]$$
 $$b \cdot E_{pk}[\widetilde{dist}(o^{\ast},q)] = E_{pk}[ba \cdot dist(o^{\ast},q) + ba]$$
 
 + Subtract encrypted perturbed distance: 
 Bob send $a \cdot E_{pk}[\widetilde{dist}(p^{\ast},q)]$ to Alice, and Alice will compute the difference of the encrypted perturbed distance:  
+
 $$b \cdot E_{pk}[\widetilde{dist}(o^{\ast},q)] - a \cdot E_{pk}[\widetilde{dist}(p^{\ast},q)] = E_{pk}[ab \cdot (dist(o^{\ast},q) - dist(p^{\ast},q))]$$
 
 + Decrypt perturbed distance difference: now, Tom receives the encrypted result and decrypt it with his secrypt key (the decrypted value is denoted as $\Delta$).
+
 $$E_{pk,sk}^{-1}(E_{pk}[ab \cdot dist(p^{\ast},q)]) = ab \cdot (dist(o^{\ast},q) - dist(p^{\ast},q))$$
 
 + Request query answer: if $\Delta = ab \cdot (dist(o^{\ast},q) - dist(p^{\ast},q)) < 0$ (where $a>0$ and $b>0$), the query user (Tom) will seek the nearest neighbor $o^{\ast}$ from Alice. Otherwise, he will seek the nearest neighbor $p^{\ast}$ from Bob.
@@ -130,6 +139,7 @@ Given a query object, the **nearest neighbor query** aims to retrieve the neares
 Intuitively, the **symmetric nearest neighbor query** aims to obtain the nearest data object to the given query object from distributed data that are hold by different data holders, while keeping both the query object and data object private.
 
 In this problem, a data object $o$ is defined as a multi-dimensional vector $\{x_1, x_2, \cdots, x_d\}$ with $d$ dimensions. Given two data objects $o = \{x_1, x_2, \cdots, x_d\}$ and $p = \{y_1, y_2, \cdots, y_d\}$, the euclidean distance is used to model their distance (i.e., similariy):  
+
 $$dist(o, p) = \sqrt{\sum_{i=1}^{d}{(x_i-y_i)^2}}$$
 
 Based on the above concepts, the formal problem definition of **Symmetric Nearest Neighbor Query** (**SNNQ** as short) is given as follows (we assume that there're only two data holders for simplicity).
@@ -137,8 +147,10 @@ We are given **two** data holders (i.e., Alice and Bob) and **one** query user (
 and Bob holds a set $Y$ of data objects,
 where $X = \{o_1, o_2, \cdots, o_n\}$ and $Y = \{p_1, p_2, \cdots, p_n\}$.
 The query user wants to find the nearest neighbor $NN$ in $X \cup Y$ to the query object $q$, where the set $X$ and $Y$ are assumed to be disjoint, i.e.,
+
 $$\forall o \in X, dist(NN, q) \le dist(o, q)$$
 $$\forall p \in Y, dist(NN, q) \le dist(p, q)$$
+
 Moreover, there are additional security requirements:  
 + For query user, Tom, the only thing he knows from Alice and Bob is $NN$;
 + For data holders, Alice and Bob, they can only know their own dataset;
@@ -159,13 +171,19 @@ To solve the **SNNQ** problem, we aim to follow the framework of the FSA algorit
 ##### 2.2.1 Secure Distance Computation
 
 Given two objects $o = \{x_1, x_2, \cdots, x_d\}$ and $p = \{y_1, y_2, \cdots, y_d\}$, we can compute the square euclidean distance instead of the square root, i.e.,
+
 $$dist(o, p) = \sum_{i=1}^{d}{(x_i-y_i)^2}$$
 
-Accordingly, we can first compute 
+Accordingly, we can first compute
+
 $$L = \langle E_{pk}[x_1]-E_{pk}[y_1], E_{pk}[x_2]-E_{pk}[y_2], \cdots, E_{pk}[x_d]-E_{pk}[y_d] \rangle$$
+
 Next, we can compute the inner product of $L$ and $L$, i.e.,
+
 $$L^2 = \langle (E_{pk}[x_1]-E_{pk}[y_1])^2, (E_{pk}[x_2]-E_{pk}[y_2])^2, \cdots, (E_{pk}[x_d]-E_{pk}[y_d])^2 \rangle$$
+
 Finally, the encrypted (square) distance is 
+
 $$(E_{pk}[x_1]-E_{pk}[y_1])^2 + (E_{pk}[x_2]-E_{pk}[y_2])^2 + \cdots + (E_{pk}[x_d]-E_{pk}[y_d])^2$$
 
 Based on this equation, Tom can first encrypt the query object $q$ with the public key and then send it to Alice or Bob. Alice and Bobe can compute the encrypted square distance based on the above equation and send it back to Tom.
@@ -174,6 +192,7 @@ After receiving the encrypted square distance, Tom can decrypt it with the secre
 ##### 2.2.2 Secure Local Nearest Neighbor
 
 In general, sending the encrypted square distance to Tom will leak additional information about the data objects from Alice or Bob. Thus, instead of sending the distance, Alice or Bob can send the encrypted distance difference, i.e.,
+
 $$E_{pk}[dist(o_i,q)] - E_{pk}[dist(o_j,q)]$$
 
 When Bob receives the encrypted data, he will decrypt it and obtain the difference between the square distances for $o_i$ and $o_j$ to the query object $q$.
@@ -205,11 +224,14 @@ Similar to the NFA algorithm for ANNQ problem, we can use a random number to per
 + Perturbed distance computation: for the participant (e.g., Alice), she generates a positive, private, and random number ($a$ for Alice). 
 She will always keep the random number as a secret.
 Then, he can peturb the distance and encrypt as follows:
+
 $$\widetilde{dist}(o_i,q) = a \cdot dist(o_i,q)$$
 $$\widetilde{dist}(o_j,q) = a \cdot dist(o_j,q)$$
+
 Here, $\widetilde{dist}$ is used to denote the peturbed (plaintext) square distance. Similarly, now the encrypted distance difference will be multiplied with a rando number $a$.
 
 + Decrypt perturbed distance difference: now, Tom receives the perturbed encrypted distance difference and decrypt it with his secrypt key (the decrypted value is denoted as $\Delta$).
++ 
 $$E_{pk,sk}^{-1}(E_{pk}[a \cdot (dist(o_i,q) - dist(o_j,q))]) = a \cdot (dist(o_i,q) - dist(o_j,q))$$
 
 + Request query answer: if $\Delta = a \cdot (dist(o_i,q) - dist(o_j,q)) < 0$ (where $a>0$), the query user (Tom) will inform the comparison result $o_i \lhd o_j$ to the data holder Alice.
@@ -217,22 +239,28 @@ $$E_{pk,sk}^{-1}(E_{pk}[a \cdot (dist(o_i,q) - dist(o_j,q))]) = a \cdot (dist(o_
 ##### 2.3.2 Improve the Efficiency
 
 The square euclidean distance is defined as
+
 $$dist(o, q) = \sum_{i=1}^{d}{(x_i-z_i)^2}$$
+
 Equivalently, it also equals
+
 $$dist(o, q) = \sum_{i=1}^{d}{{x_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{x_iz_i}$$
 
 Therefore, the difference between the square distance $dist(o_i, p)$ and the square distance $dist(o_j, q)$ is  
+
 $$
 \begin{aligned}
-dist(o_i, q) - dist(o_j, q) &= \Big(\sum_{i=1}^{d}{{x_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{x_i z_i} \Big)  \\
-&\; - \Big(\sum_{i=1}^{d}{{y_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{y_i z_i} \Big) \\
+dist(o_i, q) - dist(o_j, q) &= \Big(\sum_{i=1}^{d}{{x_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{x_i z_i} \Big) - \Big(\sum_{i=1}^{d}{{y_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{y_i z_i} \Big) \\
 &= \sum_{i=1}^{d}{{x_i}^2} - \sum_{i=1}^{d}{{y_i}^2} - 2\sum_{i=1}^{d}{z_i (x_i-y_i)}
 \end{aligned}
 $$
+
 where $o_i = \{x_1, x_2, \cdots, x_d\}$, $o_j = \{y_1, y_2, \cdots, y_d\}$, and $q = \{z_1, z_2, \cdots, z_d\}$.
 
-By multiplying 0.5 in both left-hand side and right-hand side of the equation, we have 
-$$ 0.5(dist(o_i, q) - dist(o_j, q)) = 0.5\sum_{i=1}^{d}{{x_i}^2} - 0.5\sum_{i=1}^{d}{{y_i}^2} - \sum_{i=1}^{d}{z_i (x_i-y_i)} $$
+By multiplying 0.5 in both left-hand side and right-hand side of the equation, we have
+
+$$dist(o_i, q) - dist(o_j, q) = 0.5\sum_{i=1}^{d}{{x_i}^2} - 0.5\sum_{i=1}^{d}{{y_i}^2} - \sum_{i=1}^{d}{z_i (x_i-y_i)}$$
+
 The first two terms can be first computed in plaintext and then encrypted with the public key. The last term can be computed by homomorphic encryption in encrypted data form. By using this way, we can save many secure computations.
 
 ##### 2.3.3 Analysis
