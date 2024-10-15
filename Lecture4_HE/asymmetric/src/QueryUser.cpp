@@ -3,6 +3,7 @@
 #include <cmath>
 #include <sstream>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <memory>
 #include <string>
@@ -16,9 +17,6 @@
 #include <exception>
 #include <signal.h>
 #include <unistd.h>
-
-#include <boost/program_options.hpp>
-namespace bpo = boost::program_options;
 
 #include <grpc/grpc.h>
 #include <grpcpp/grpcpp.h>
@@ -148,14 +146,12 @@ public:
         silo_receiver->GetEncryptDistance(query_object);
     }
 
-
-    static void ThreadGetDecryptDistance(DataHolderReceiver* silo_receiver, const EncryptionParameters& params, const SecretKey& secret_key, VectorDimensionType& dist) {  
+    static void ThreadGetDecryptDistance(DataHolderReceiver* silo_receiver, const std::string& edist_str, const EncryptionParameters& params, const SecretKey& secret_key, VectorDimensionType& dist) {  
         SEALContext context(params);
 
         Decryptor decryptor(context, secret_key);
         BatchEncoder batch_encoder(context);
 
-        std::string edist_str = m_encrypt_dist.edist();
         std::stringstream edist_sstream(edist_str);
 
         Ciphertext dist_encrypted;
@@ -211,7 +207,7 @@ public:
         VectorDataType query_data(dim, m_query_num++, arr);
 
         // Step 2: Get encrypt distance from all data holders
-        m_GetEncryptDistance();
+        m_GetEncryptDistance(query_data);
 
         // Step 3: Get decrypt distance from all data holders and determine the nearest one
         int nearest_silo_id = m_GetDecryptNearestDistance();
@@ -249,13 +245,17 @@ private:
     void m_GetEncryptDistance(const VectorDataType& query_data) {
         QueryObject query_object;
 
-        query_object.set_pk(m_public_key);
+        std::stringstream m_public_key_sstream;
+        m_public_key.save(m_public_key_sstream);
+        query_object.set_pk(m_public_key_sstream.str());
         const int dim = query_data.Dimension();
         for (int i=0; i<dim; ++i) {
             query_object.add_data(query_data.data[i]);
         }
         #ifdef LOCAL_DEBUG
-        query_object.set_sk(m_secret_key);
+        std::stringstream m_secret_key_sstream;
+        m_secret_key.save(m_secret_key_sstream);
+        query_object.set_sk(m_secret_key_sstream.str());
         #endif
 
         const int silo_num = m_silo_ipaddr_list.size();
@@ -269,17 +269,27 @@ private:
         }
     }
 
-    void m_GetDecryptNearestDistance() {
+    int m_GetDecryptNearestDistance() {
         const int silo_num = m_silo_ipaddr_list.size();
         std::vector<std::thread> thread_list(silo_num);
         std::vector<VectorDimensionType> dist_list(silo_num);
 
         for (int i=0; i<silo_num; ++i) {
-            thread_list[i] = std::thread(DataHolderReceiver::ThreadGetDecryptDistance, m_silo_receiver_list[i].get(), m_parms, m_secret_key, std::ref(dist_list[i]));
+            EncryptDistance encrypt_dist = m_silo_receiver_list[i]->GetEncryptDistance();
+            std::string edist_str = encrypt_dist.edist();
+            thread_list[i] = std::thread(DataHolderReceiver::ThreadGetDecryptDistance, m_silo_receiver_list[i].get(), edist_str, m_parms, m_secret_key, std::ref(dist_list[i]));
         }
         for (int i=0; i<silo_num; ++i) {
             thread_list[i].join();
         }
+
+        int nearest_silo_id = 0;
+        for (int i=0; i<silo_num; ++i) {
+            if (dist_list[i] < dist_list[nearest_silo_id]) {
+                nearest_silo_id = i;
+            }
+        }
+        return nearest_silo_id;
     }
 
     VectorDataType m_GetQueryAnswer(const int nearest_silo_id) {
@@ -306,10 +316,11 @@ private:
         args.SetInt(GRPC_ARG_MAX_RECEIVE_MESSAGE_LENGTH, INT_MAX); 
         for (int silo_id=0; silo_id<m_silo_num; ++silo_id) {
             std::string silo_ipaddr = m_silo_ipaddr_list[silo_id];
-            std::cout << "Server is connecting Silo #(" << std::to_string(silo_id+1) << ") on IP address " << silo_ipaddr << std::endl;
+            std::string silo_name = m_silo_name_list[silo_id];
+            std::cout << "Query user " << m_user_name << " is connecting Data Holder #(" << std::to_string(silo_id+1) << ") " << silo_name << " on IP address " << silo_ipaddr << std::endl;
 
             std::shared_ptr<grpc::Channel> channel = grpc::CreateCustomChannel(silo_ipaddr, grpc::InsecureChannelCredentials(), args);
-            m_silo_receiver_list[silo_id] = std::make_shared<DataHolderReceiver>(channel, silo_id+1, silo_ipaddr);
+            m_silo_receiver_list[silo_id] = std::make_shared<DataHolderReceiver>(channel, silo_id+1, silo_ipaddr, silo_name);
         }
     }
 
@@ -351,6 +362,7 @@ private:
         m_parms.set_coeff_modulus(CoeffModulus::BFVDefault(m_poly_modulus_degree));
         m_parms.set_plain_modulus(PlainModulus::Batching(m_poly_modulus_degree, m_batching_size));
 
+        SEALContext context(m_parms);
         PrintLine(__LINE__);
         std::cout << "Set encryption parameters and print" << std::endl;
         m_print_parameters(context);
@@ -365,6 +377,61 @@ private:
         m_secret_key = keygen.secret_key();
         keygen.create_public_key(m_public_key);
         keygen.create_relin_keys(m_relin_keys);        
+    }
+
+    /*
+    Helper function: Prints the parameters in a SEALContext.
+    */
+    void m_print_parameters(const seal::SEALContext &context) {
+        auto &context_data = *context.key_context_data();
+
+        /*
+        Which scheme are we using?
+        */
+        std::string scheme_name;
+        switch (context_data.parms().scheme())
+        {
+        case seal::scheme_type::bfv:
+            scheme_name = "BFV";
+            break;
+        case seal::scheme_type::ckks:
+            scheme_name = "CKKS";
+            break;
+        case seal::scheme_type::bgv:
+            scheme_name = "BGV";
+            break;
+        default:
+            throw std::invalid_argument("unsupported scheme");
+        }
+        std::cout << "/" << std::endl;
+        std::cout << "| Encryption parameters :" << std::endl;
+        std::cout << "|   scheme: " << scheme_name << std::endl;
+        std::cout << "|   poly_modulus_degree: " << context_data.parms().poly_modulus_degree() << std::endl;
+
+        /*
+        Print the size of the true (product) coefficient modulus.
+        */
+        std::cout << "|   coeff_modulus size: ";
+        std::cout << context_data.total_coeff_modulus_bit_count() << " (";
+        auto coeff_modulus = context_data.parms().coeff_modulus();
+        std::size_t coeff_modulus_size = coeff_modulus.size();
+        for (std::size_t i = 0; i < coeff_modulus_size - 1; i++)
+        {
+            std::cout << coeff_modulus[i].bit_count() << " + ";
+        }
+        std::cout << coeff_modulus.back().bit_count();
+        std::cout << ") bits" << std::endl;
+
+        /*
+        For the BFV scheme print the plain_modulus parameter.
+        */
+        if (context_data.parms().scheme() == seal::scheme_type::bfv)
+        {
+            std::cout << "|   plain_modulus: " << context_data.parms().plain_modulus().value() << std::endl;
+        }
+
+        std::cout << "\\" << std::endl;
+        fflush(stdout);
     }
 
     void m_InitBenchLogger() {
@@ -394,13 +461,13 @@ private:
 
 std::unique_ptr<FedSqlServer> fed_sqlserver_ptr = nullptr;
 
-void RunService(const std::string& silo_ip_filename, const std::string& query_filename, const std::string& output_filename, const std::string& truth_filename, const std::string& drf_option) {
-    fed_sqlserver_ptr = std::make_unique<FedSqlServer>(silo_ip_filename, query_filename, output_filename, truth_filename, drf_option);
+void RunService(const std::string& silo_ip_filename, const std::string& user_name) {
+    fed_sqlserver_ptr = std::make_unique<FedSqlServer>(silo_ip_filename, user_name);
 
     std::string log_info = fed_sqlserver_ptr->to_string();
     std::cout << log_info;
     std::cout.flush();
-}    
+}
 
 // Ensure the log file is output, when the program is terminated.
 void SignalHandler(int signal) {

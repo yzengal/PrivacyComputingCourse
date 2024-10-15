@@ -1,8 +1,22 @@
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <sstream>
 #include <iostream>
+#include <fstream>
+#include <iomanip>
 #include <memory>
 #include <string>
+#include <vector>
+#include <thread>
+#include <cctype>
 #include <cstdlib>
+#include <random>
 #include <limits>
+#include <utility>
+#include <exception>
+#include <signal.h>
+#include <unistd.h>
 
 #include <boost/program_options.hpp>
 namespace bpo = boost::program_options;
@@ -237,6 +251,7 @@ private:
         m_parms.set_coeff_modulus(CoeffModulus::BFVDefault(m_poly_modulus_degree));
         m_parms.set_plain_modulus(PlainModulus::Batching(m_poly_modulus_degree, m_batching_size));
 
+        SEALContext context(m_parms);
         print_line(__LINE__);
         std::cout << "Set encryption parameters and print" << std::endl;
         m_print_parameters(context);

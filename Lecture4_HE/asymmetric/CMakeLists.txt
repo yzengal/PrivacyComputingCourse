@@ -55,7 +55,7 @@ target_link_libraries(FedSql_grpc_proto
 add_executable(user src/QueryUser.cpp src/utils/DataType.hpp src/utils/BenchLogger.hpp ${FedSql_proto_srcs} ${FedSql_grpc_srcs})  
 add_executable(holder src/DataHolder.cpp src/utils/DataType.hpp src/utils/BenchLogger.hpp ${FedSql_proto_srcs} ${FedSql_grpc_srcs})  
   
-# 链接gRPC和Protobuf库  
+# 链接第三方库
 target_link_libraries(user PRIVATE
     pthread 
     SEAL::seal
@@ -67,6 +67,7 @@ target_link_libraries(user PRIVATE
 target_link_libraries(holder PRIVATE
     pthread
     SEAL::seal
+    Boost::program_options
     FedSql_grpc_proto
     ${_REFLECTION}
     ${_GRPC_GRPCPP}
