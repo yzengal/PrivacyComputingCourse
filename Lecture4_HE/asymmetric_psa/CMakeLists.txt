@@ -19,12 +19,12 @@ include(./common.cmake)
 
 find_package(SEAL 4.1 REQUIRED)
 if(NOT SEAL_FOUND)  
-    message(FATAL_ERROR "Could not find SEAL version 4.1.0 or higher")  
+    message(FATAL_ERROR "Could not find SEAL version 4.1.1 or higher")  
 endif()
 
-find_package(Boost 1.72.0 COMPONENTS program_options REQUIRED)
+find_package(Boost 1.85.0 COMPONENTS program_options REQUIRED)
 If (NOT Boost_FOUND)
-    message(FATAL_ERROR "Could not find Boost version 1.72.0 or higher with the require components")  
+    message(FATAL_ERROR "Could not find Boost version 1.85.0 or higher with the require components")  
 endif()
 
 # Proto file
