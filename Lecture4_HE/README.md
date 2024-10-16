@@ -24,17 +24,16 @@ In the following, we have provided two example codes for simulating the aforemen
 
 #### 1.1 Problem Definition
 
-Given a query object, the **nearest neighbor query** aims to retrieve the nearest data object from the dataset.
-Intuitively, the **asymmetric nearest neighbor query** aims to obtain the nearest data object to the given query object from distributed data that are hold by different data holders. 
+Given a query object, the **nearest neighbor query** aims to retrieve the nearest data object from the dataset. Intuitively, the **asymmetric nearest neighbor query** aims to obtain the nearest data object to the given query object from distributed data that are hold by different data holders. 
 
 In this problem, a data object $o$ is defined as a multi-dimensional vector $\{x_1, x_2, \cdots, x_d\}$ with $d$ dimensions. Given two data objects $o = \{x_1, x_2, \cdots, x_d\}$ and $p = \{y_1, y_2, \cdots, y_d\}$, the euclidean distance is used to model their distance (i.e., similariy):  
 
 $$dist(o, p) = \sqrt{\sum_{i=1}^{d}{(x_i-y_i)^2}}$$
 
+
 Based on the above concepts, the formal problem definition of **Asymmetric Nearest Neighbor Query** (**ANNQ** as short) is given as follows (we assume that there're only two data holders for simplicity).
-We are given **two** data holders (i.e., Alice and Bob) and **one** query user (i.e., Tom). Among these participants, Alice holds a set $X$ of data objects, 
-and Bob holds a set $Y$ of data objects, where $X = \{o_1, o_2, \cdots, o_n\}$ and $Y = \{p_1, p_2, \cdots, p_n\}$.
-The query user wants to find the nearest neighbor $NN$ in $X \cup Y$ to the query object $q$, where the set $X$ and $Y$ are assumed to be disjoint, i.e.,  
+
+**Problem Definition:** We are given **two** data holders (i.e., Alice and Bob) and **one** query user (i.e., Tom). Among these participants, Alice holds a set $X$ of data objects, and Bob holds a set $Y$ of data objects, where $X = \{o_1, o_2, \cdots, o_n\}$ and $Y = \{p_1, p_2, \cdots, p_n\}$. The query user wants to find the nearest neighbor $NN$ in $X \cup Y$ to the query object $q$, where the set $X$ and $Y$ are assumed to be disjoint, i.e.,  
 
 $$
 \begin{aligned}
@@ -43,21 +42,22 @@ $$
 \end{aligned}
 $$
 
-Moreover, there are additional security requirements:  
+Moreover, there are additional **security requirements**:  
 + For query user, Tom, the only thing he knows from Alice and Bob is $NN$;
 + For data holders, Alice and Bob, they can only know their own dataset;
 + The query object, $q$, can be revealed to any participant, both Alice and Bob.  
 
-Notice: if there are more than two distinct objects in $X \cup Y$ that achieve the same nearest distance, any one can be retrieved as the query answer.
+**Notice:** if there are more than two distinct objects in $X \cup Y$ that achieve the same nearest distance, any one can be retrieved as the query answer.
 
 #### 1.2 Methodology: Partially Secure Algorithm (PSA)
 
-To solve the **ANNQ** problem, we propose a secure and efficient algorithm as follows:  
+To solve the **ANNQ** problem, we propose a secure and efficient algorithm as follows: 
+
 1. The query user (Tom) sends the query object $q$ to the data holders (Alice and Bob);
 
 2. After receiving the query object, both Alice and Bob can compute the nearest neighbor to the query object $q$ within their local dataset, say $o^{\ast}$ and $p^{\ast}$.
 
-3. Next, we only need to **securely** pick the nearest one between $o^{\ast}$ and $p^{\ast}$, which is very similar to **The Millionaire Problem**. The key distinction lies in the fact that, in the ANNQ problem, neither Alice nor Bob can know the comparison result, whereas in the millionaire problem, either Alice or Bob is privy to the outcome of the comparison. Therefore, we can leverage **Homomorphic Encryption** (i.e., the BGV scheme in [Microsoft SEAL](https://github.com/microsoft/SEAL)) to tackle the problem as follows.
+3. Next, we only need to **securely** pick the nearest one between $o^{\ast}$ and $p^{\ast}$, which is very similar to **The Millionaire Problem**. The key distinction lies in the fact that, in the ANNQ problem, neither Alice nor Bob can know the comparison result, whereas in the millionaire problem, either Alice or Bob is privy to the outcome of the comparison. Therefore, we can leverage **Homomorphic Encryption** (i.e., the BGV scheme in [Microsoft SEAL](https://github.com/microsoft/SEAL)) to tackle the problem as follows:
 
     + Key generation: the query user (Tom) generates the public key $pk$ and secret key $sk$, and he will broadcast the public key $pk$ to the data holders (Alice and Bob).
 
@@ -69,15 +69,15 @@ To solve the **ANNQ** problem, we propose a secure and efficient algorithm as fo
 
     + Request query answer: if $\Delta = dist(o^{\ast},q) - dist(p^{\ast},q) < 0$, the query user (Tom) will seek the nearest neighbor $o^{\ast}$ from Alice. Otherwise, he will seek the nearest neighbor $p^{\ast}$ from Bob.
 
-**Analysis**: in the PSA algorithm, the last step inadvertently discloses additional information about $dist(p^{\ast},q)$ from Bob to the query user Tom, when $o^{\ast}$ from Alice is the nearest neighbor, and vice versa.
+**Analysis:** in the PSA algorithm, the last step inadvertently discloses additional information about $dist(p^{\ast},q)$ from Bob to the query user Tom, when $o^{\ast}$ from Alice is the nearest neighbor, and vice versa.
 
 #### 1.3 Methodology: Fully Secure Algorithm (FSA)
 
 In the FSA algorithm, we aim to prevent additional information leakage of the PSA algorithm by the following procedure.
 
-+ Key generation: the query user (Tom) generates the public key $pk$ and secret key $sk$, and he will broadcast the public key $pk$ to the data holders (Alice and Bob).
++ **Key generation:** the query user (Tom) generates the public key $pk$ and secret key $sk$, and he will broadcast the public key $pk$ to the data holders (Alice and Bob).
 
-+ Perturbed distance computation: for either Alice or Bob, he/she generates a positive, private, and random number ($a$ for Alice and $b$ for Bob). 
++ **Perturbed distance computation:** for either Alice or Bob, he/she generates a positive, private, and random number ($a$ for Alice and $b$ for Bob). 
 He/She will always keep the random number as a secret.
 Then, he can peturb the distance and encrypt as follows:
 
@@ -90,9 +90,9 @@ $$
 
 Here, $\widetilde{dist}$ is used to denote the peturbed (plaintext) distance.
 
-+ Exchange encrypted perturbed distance: Alice and Bob encrypt their peturbed distances $E_{pk}[\widetilde{dist}(o^{\ast},q)]$ and $E_{pk}[\widetilde{dist}(p^{\ast},q)]$. Then, they will exchange the encrypted data through network.
++ **Exchange encrypted perturbed distance:** Alice and Bob encrypt their peturbed distances $E_{pk}[\widetilde{dist}(o^{\ast},q)]$ and $E_{pk}[\widetilde{dist}(p^{\ast},q)]$. Then, they will exchange the encrypted data through network.
 
-+ Double perturbed the encrypted distance: after receiving the encrypted data, Alice and Bob further peturb the encrypted data with their own secret number $a$ and $b$:
++ **Double perturbed the encrypted distance:** after receiving the encrypted data, Alice and Bob further peturb the encrypted data with their own secret number $a$ and $b$:
 
 $$
 \begin{aligned}
@@ -101,18 +101,18 @@ b \cdot E_{pk}[\widetilde{dist}(o^{\ast},q)] &= E_{pk}[ba \cdot dist(o^{\ast},q)
 \end{aligned}
 $$
 
-+ Subtract encrypted perturbed distance: 
++ **Subtract encrypted perturbed distance:** 
 Bob send $a \cdot E_{pk}[\widetilde{dist}(p^{\ast},q)]$ to Alice, and Alice will compute the difference of the encrypted perturbed distance:  
 
 $$b \cdot E_{pk}[\widetilde{dist}(o^{\ast},q)] - a \cdot E_{pk}[\widetilde{dist}(p^{\ast},q)] = E_{pk}[ab \cdot (dist(o^{\ast},q) - dist(p^{\ast},q))]$$
 
-+ Decrypt perturbed distance difference: now, Tom receives the encrypted result and decrypt it with his secrypt key (the decrypted value is denoted as $\Delta$).
++ **Decrypt (double) perturbed distance difference:** now, Tom receives the encrypted result and decrypt it with his secrypt key (the decrypted value is denoted as $\Delta$).
 
 $$E_{pk,sk}^{-1}(E_{pk}[ab \cdot dist(p^{\ast},q)]) = ab \cdot (dist(o^{\ast},q) - dist(p^{\ast},q))$$
 
-+ Request query answer: if $\Delta = ab \cdot (dist(o^{\ast},q) - dist(p^{\ast},q)) < 0$ (where $a>0$ and $b>0$), the query user (Tom) will seek the nearest neighbor $o^{\ast}$ from Alice. Otherwise, he will seek the nearest neighbor $p^{\ast}$ from Bob.
++ **Request query answer:** if $\Delta = ab \cdot (dist(o^{\ast},q) - dist(p^{\ast},q)) < 0$ (where $a>0$ and $b>0$), the query user (Tom) will seek the nearest neighbor $o^{\ast}$ from Alice. Otherwise, he will seek the nearest neighbor $p^{\ast}$ from Bob.
 
-**Analysis**: in the FSA algorithm, Tom can only know the peturbed distance (with unknown random number $a$ and $b$). Then, even if Tom and Alice collude, they cannot obtain $dist(p^{\ast},q)$, and vice versa.
+**Analysis:** in the FSA algorithm, Tom can only know the peturbed distance (with unknown random number $a$ and $b$). Then, even if Tom and Alice collude, they cannot obtain $dist(p^{\ast},q)$, and vice versa.
 
 #### 1.4 Experiment
 
@@ -144,24 +144,22 @@ In the ``compile.sh``, we can enable the debug information by changing ``-DLOCAL
 ./Tom.sh
 ```
 
-5. To run the FSA algorithm, you only need to change the directory from ``asymmetric_psa`` to ``asymmetric_fsa`` in the above commands.
+**Notice:** to run the FSA algorithm, you only need to change the directory from ``asymmetric_psa`` to ``asymmetric_fsa`` in the above commands.
 
 ### Example 2: Symmetric Nearest Neighbor Query
 
 #### 2.1 Problem Definition
 
-Given a query object, the **nearest neighbor query** aims to retrieve the nearest data object from the dataset.
-Intuitively, the **symmetric nearest neighbor query** aims to obtain the nearest data object to the given query object from distributed data that are hold by different data holders, while keeping both the query object and data object private.
+Given a query object, the **nearest neighbor query** aims to retrieve the nearest data object from the dataset. Intuitively, the **symmetric nearest neighbor query** aims to obtain the nearest data object to the given query object from distributed data that are hold by different data holders, while keeping both the query object and data object private.
 
 In this problem, a data object $o$ is defined as a multi-dimensional vector $\{x_1, x_2, \cdots, x_d\}$ with $d$ dimensions. Given two data objects $o = \{x_1, x_2, \cdots, x_d\}$ and $p = \{y_1, y_2, \cdots, y_d\}$, the euclidean distance is used to model their distance (i.e., similariy):  
 
 $$dist(o, p) = \sqrt{\sum_{i=1}^{d}{(x_i-y_i)^2}}$$
 
 Based on the above concepts, the formal problem definition of **Symmetric Nearest Neighbor Query** (**SNNQ** as short) is given as follows (we assume that there're only two data holders for simplicity).
-We are given **two** data holders (i.e., Alice and Bob) and **one** query user (i.e., Tom). Among these participants, Alice holds a set $X$ of data objects, 
-and Bob holds a set $Y$ of data objects,
-where $X = \{o_1, o_2, \cdots, o_n\}$ and $Y = \{p_1, p_2, \cdots, p_n\}$.
-The query user wants to find the nearest neighbor $NN$ in $X \cup Y$ to the query object $q$, where the set $X$ and $Y$ are assumed to be disjoint, i.e.,
+
+**Problem Definition:** We are given **two** data holders (i.e., Alice and Bob) and **one** query user (i.e., Tom). Among these participants, Alice holds a set $X$ of data objects, 
+and Bob holds a set $Y$ of data objects, where $X = \{o_1, o_2, \cdots, o_n\}$ and $Y = \{p_1, p_2, \cdots, p_n\}$. The query user wants to find the nearest neighbor $NN$ in $X \cup Y$ to the query object $q$, where the set $X$ and $Y$ are assumed to be disjoint, i.e.,
 
 $$
 \begin{aligned}
@@ -170,12 +168,12 @@ $$
 \end{aligned}
 $$
 
-Moreover, there are additional security requirements:  
+Moreover, there are additional **security requirements**:  
 + For query user, Tom, the only thing he knows from Alice and Bob is $NN$;
 + For data holders, Alice and Bob, they can only know their own dataset;
 + The query object, $q$, **cannot** be revealed to any participant, either Alice or Bob.  
 
-Notice: if there are more than two distinct objects in $X \cup Y$ that achieve the same nearest distance, any one can be retrieved as the query answer.
+**Notice:** if there are more than two distinct objects in $X \cup Y$ that achieve the same nearest distance, any one can be retrieved as the query answer.
 
 #### 2.2 Methodology: Naive Algorithm (NA)
 
@@ -205,8 +203,7 @@ Finally, the encrypted (square) distance is
 
 $$(E_{pk}[x_1]-E_{pk}[y_1])^2 + (E_{pk}[x_2]-E_{pk}[y_2])^2 + \cdots + (E_{pk}[x_d]-E_{pk}[y_d])^2$$
 
-Based on this equation, Tom can first encrypt the query object $q$ with the public key and then send it to Alice or Bob. Alice and Bobe can compute the encrypted square distance based on the above equation and send it back to Tom.
-After receiving the encrypted square distance, Tom can decrypt it with the secret key and obtain the square distance.
+Based on this equation, Tom can first encrypt the query object $q$ with the public key and then send it to Alice or Bob. Alice and Bobe can compute the encrypted square distance based on the above equation and send it back to Tom. After receiving the encrypted square distance, Tom can decrypt it with the secret key and obtain the square distance.
 
 ##### 2.2.2 Secure Local Nearest Neighbor
 
@@ -214,21 +211,17 @@ In general, sending the encrypted square distance to Tom will leak additional in
 
 $$E_{pk}[dist(o_i,q)] - E_{pk}[dist(o_j,q)]$$
 
-When Bob receives the encrypted data, he will decrypt it and obtain the difference between the square distances for $o_i$ and $o_j$ to the query object $q$.
-If the value is negative, it implies that $o_i$ is closer to $q$ than $o_j$.
+When Bob receives the encrypted data, he will decrypt it and obtain the difference between the square distances for $o_i$ and $o_j$ to the query object $q$. If the value is negative, it implies that $o_i$ is closer to $q$ than $o_j$.
 
 By iteratively checking the distance difference via Tom, both Alice and Bob can obtain their local nearest neighbor.
 
 ##### 2.2.3 Secure Global Nearest Neighbor
 
-As long as Alice and Bob have found their local nearest neighbor, we can further use the FSA algorithm to eventually pick the global nearest neighbor.
-The main difference is that the query user Tom needs to send encrypted query object, i.e., $\{E_{pk}[z_1], E_{pk}[z_2], \cdots, E_{pk}[z_d]\}$, to Alice and Bob.
-The other steps are almost identical to the last step of the FSA algorithm.
+As long as Alice and Bob have found their local nearest neighbor, we can further use the FSA algorithm to eventually pick the global nearest neighbor. The **main difference** is that the query user Tom needs to send encrypted query object, i.e., $\{E_{pk}[z_1], E_{pk}[z_2], \cdots, E_{pk}[z_d]\}$, to Alice and Bob. The other steps are almost identical to the last step of the FSA algorithm.
 
 ##### 2.2.4 Analysis
 
-In the naive extension, **secure local nearest neighbor** inadvertently discloses additional information about the distance difference from either Alice or Bob to the query user Tom.
-Moreover, it is time-consuming to securely compute the square distance. Is it possible that we can do better in both security and efficiency?
+In the naive extension, **secure local nearest neighbor** inadvertently **discloses** additional information about the distance difference from either Alice or Bob to the query user Tom. Moreover, it is **time-consuming** to securely compute the square distance. Is it possible that we can do better in both security and efficiency?
 
 #### 2.3 Methodology: Optimized Algorithm (OA)
 
@@ -236,11 +229,11 @@ In the following, we first introduce how to enhance the security in Section 2.3.
 
 ##### 2.3.1 Enhance the Security
 
-Similar to the NFA algorithm for ANNQ problem, we can use a random number to perturb the distance in order to reveal the plaintext distance.
+**Main Idea:** Similar to the NFA algorithm for ANNQ problem, we can use a random number to perturb the distance in order to reveal the plaintext distance.
 
-+ Key generation: the query user (Tom) generates the public key $pk$ and secret key $sk$, and he will broadcast the public key $pk$ to a data holder (either Alice or Bob).
++ **Key generation:** the query user (Tom) generates the public key $pk$ and secret key $sk$, and he will broadcast the public key $pk$ to a data holder (either Alice or Bob).
 
-+ Perturbed distance computation: for the participant (e.g., Alice), she generates a positive, private, and random number ($a$ for Alice). 
++ **Perturbed distance computation:** for the participant (e.g., Alice), she generates a positive, private, and random number ($a$ for Alice). 
 She will always keep the random number as a secret.
 Then, he can peturb the distance and encrypt as follows:
 
@@ -253,11 +246,11 @@ $$
 
 Here, $\widetilde{dist}$ is used to denote the peturbed (plaintext) square distance. Similarly, now the encrypted distance difference will be multiplied with a rando number $a$.
 
-+ Decrypt perturbed distance difference: now, Tom receives the perturbed encrypted distance difference and decrypt it with his secrypt key (the decrypted value is denoted as $\Delta$).
++ **Decrypt perturbed distance difference:** now, Tom receives the perturbed encrypted distance difference and decrypt it with his secrypt key (the decrypted value is denoted as $\Delta$).
 
 $$E_{pk,sk}^{-1}(E_{pk}[a \cdot (dist(o_i,q) - dist(o_j,q))]) = a \cdot (dist(o_i,q) - dist(o_j,q))$$
 
-+ Request query answer: if $\Delta = a \cdot (dist(o_i,q) - dist(o_j,q)) < 0$ (where $a>0$), the query user (Tom) will inform the comparison result $o_i \lhd o_j$ to the data holder Alice.
++ **Request query answer:** if $\Delta = a \cdot (dist(o_i,q) - dist(o_j,q)) < 0$ (where $a>0$), the query user (Tom) will inform the comparison result $o_i \lhd o_j$ to the data holder Alice.
 
 ##### 2.3.2 Improve the Efficiency
 
@@ -273,7 +266,8 @@ Therefore, the difference between the square distance $dist(o_i, p)$ and the squ
 
 $$
 \begin{aligned}
-dist(o_i, q) - dist(o_j, q) &= \Big(\sum_{i=1}^{d}{{x_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{x_i z_i} \Big) - \Big(\sum_{i=1}^{d}{{y_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{y_i z_i} \Big) \\
+dist(o_i, q) - dist(o_j, q) &= \Big(\sum_{i=1}^{d}{{x_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{x_i z_i} \Big) \\
+&\qquad - \Big(\sum_{i=1}^{d}{{y_i}^2} + \sum_{i=1}^{d}{{z_i}^2} - 2\sum_{i=1}^{d}{y_i z_i} \Big) \\
 &= \sum_{i=1}^{d}{{x_i}^2} - \sum_{i=1}^{d}{{y_i}^2} - 2\sum_{i=1}^{d}{z_i (x_i-y_i)}
 \end{aligned}
 $$
