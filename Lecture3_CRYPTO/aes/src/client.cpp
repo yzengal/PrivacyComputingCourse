@@ -64,11 +64,13 @@ public:
 
         // 计算共享密钥 A^b%p  
         uint64_t shared_secret_key = mod_pow(A, b, p);
-  
+
+        std::cout << std::hex;
         // std::cout << "Client private key: " << b << std::endl;
         // std::cout << "Client public key: " << B << std::endl;
         // std::cout << "Server public key: " << A << std::endl;
-        std::cout << "Shared secret key: " << shared_secret_key << std::endl;
+        std::cout << "Shared secret key: 0x" << std::setw(8) << std::setfill('0') << shared_secret_key << std::endl;
+        std::cout << std::dec;
 
         return shared_secret_key;
     }

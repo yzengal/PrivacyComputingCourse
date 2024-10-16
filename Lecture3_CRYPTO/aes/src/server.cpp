@@ -47,11 +47,13 @@ class DiffieHellmanServiceImpl final : public DiffieHellmanService::Service {
 
         // 计算共享密钥 B^a%p  
         uint64_t shared_secret_key = mod_pow(B, a, p);
-  
+
+        std::cout << std::hex;
         // std::cout << "Server private key: " << a << std::endl;
         // std::cout << "Server public key: " << A << std::endl;
         // std::cout << "Client public key: " << B << std::endl;
-        std::cout << "Shared secret key: " << shared_secret_key << std::endl;
+        std::cout << "Shared secret key: 0x" << std::setw(8) << std::setfill('0') << shared_secret_key << std::endl;
+        std::cout << std::dec;
 
         shared_secret_key_list.emplace_back(shared_secret_key);
 
