@@ -7,7 +7,7 @@ The purpose of this project is to help students learn the basic tools of **Homom
 Linux: Ubuntu 22.04 LTS   
 CMake: >= 3.10.0
 gRPC: >= 1.62.0  
-[Boost C++ library](https://www.boost.org/): >= 1.72.0  
+[Boost C++ library](https://www.boost.org/): >= 1.85.0  
 [Microsoft SEAL](https://github.com/microsoft/SEAL): >= 4.1.0
 
 ## Application scenario
