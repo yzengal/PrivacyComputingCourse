@@ -117,6 +117,7 @@ cd scripts
 chmod +x *.sh
 ./compile.sh
 ```
+In the ``compile.sh``, we can enable the debug information by changing ``-DLOCAL_DEBUG=OFF`` to ``-DLOCAL_DEBUG=ON``.
 
 3. Execute the following command in two terminals to enable the data holders **Alice** and **Bob**:
 ```
