@@ -8,7 +8,7 @@ In a practical application scenario, imagine a situation where an individual or 
 
 ## Examples
 
-In the following, we have provided four example codes for simulating the aforementioned application scenario.
+In the following, we have provided three example codes for simulating the aforementioned application scenario.
 
 ### Example 1: Caesar Cipher & Decipher
 
